@@ -1,0 +1,390 @@
+================================================================================
+SLEEPTRACKER — PROJECT SUMMARY (living document)
+================================================================================
+Last updated: 2026-07-10 (after Step 30 — Zod validation middleware)
+Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
+in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
+entry to the CHANGE LOG section at the bottom of this file.
+
+================================================================================
+1. WHAT THIS APP IS
+================================================================================
+SleepTracker is a full-stack sleep logging + analytics platform.
+
+- Frontend: Vite + React + TypeScript + Tailwind v4 + shadcn/ui
+- Backend: Express + TypeScript + Prisma + SQLite
+- Goal: Log daily sleep and related factors (mood, food, exercise, environment,
+  health), then compute correlations / experiment before-after analysis.
+
+Stack decision note:
+- Early scaffold briefly used Mongo/Mongoose + JWT user auth.
+- Project then switched to the Prisma + SQLite plan from the build guide.
+- Current source of truth is Prisma/SQLite under Backend/src/.
+- Old Mongo/Express root files were removed. mongoose/jwt remain in
+  package.json as leftover deps (not used by current src/).
+
+================================================================================
+2. COMPLETE FOLDER STRUCTURE
+================================================================================
+SleepTracker/
+├── Summary.txt                          # THIS FILE — living project bible
+├── README.md
+├── .gitignore
+│
+├── Backend/
+│   ├── .env                             # PORT, DATABASE_URL, secrets (gitignored)
+│   ├── .gitignore
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── prisma.config.ts                 # Prisma CLI config + seed command
+│   ├── prisma/
+│   │   ├── schema.prisma                # All DB models
+│   │   ├── seed.ts                      # ~14 days realistic fake data
+│   │   └── migrations/
+│   │       └── 20260709233638_init/     # Initial SQLite migration
+│   ├── generated/prisma/                # Generated Prisma Client (gitignored)
+│   ├── dev.db                           # SQLite database file (gitignored)
+│   ├── src/                             # CLEAN ARCHITECTURE (current API)
+│   │   ├── server.ts                    # Entrypoint: app.listen(PORT)
+│   │   ├── app.ts                       # Express app, middleware, route mount
+│   │   ├── lib/
+│   │   │   └── prisma.ts                # PrismaClient + better-sqlite3 adapter
+│   │   ├── middleware/
+│   │   │   ├── asyncHandler.ts          # Wraps async route handlers
+│   │   │   ├── errorMiddleware.ts       # AppError, ValidationError, 404
+│   │   │   └── validate.ts              # validateBody(zodSchema)
+│   │   ├── schemas/
+│   │   │   └── sleepEntry.schema.ts     # Zod sleepEntrySchema
+│   │   ├── repositories/                # DB ACCESS ONLY (Prisma lives here)
+│   │   │   ├── sleepEntry.repository.ts
+│   │   │   └── experiment.repository.ts
+│   │   ├── services/                    # BUSINESS LOGIC (no Express)
+│   │   │   ├── analytics.service.ts     # Pearson correlation + summary
+│   │   │   ├── sleepEntry.service.ts
+│   │   │   ├── experiment.service.ts
+│   │   │   └── export.service.ts        # CSV export
+│   │   ├── routes/                      # HTTP ONLY → calls services
+│   │   │   ├── sleepEntry.routes.ts
+│   │   │   ├── experiment.routes.ts
+│   │   │   ├── analytics.routes.ts
+│   │   │   └── export.routes.ts
+│   │   └── types/
+│   │       └── index.ts                 # Shared TS types / inputs
+│   └── tests/                           # ALL VERIFICATION SCRIPTS LIVE HERE
+│       ├── run-all.ts                   # Master test runner
+│       ├── analytics.service.test.ts    # Pure unit tests (no DB/HTTP)
+│       ├── sleepEntry.repository.test.ts
+│       ├── api.smoke.test.ts            # HTTP smoke (needs server running)
+│       └── helpers.ts
+│
+└── Frontend/
+    └── sleeptracker/                    # Vite React app
+        ├── index.html                   # <html class="dark"> by default
+        ├── vite.config.ts               # React + Tailwind + @ alias
+        ├── components.json              # shadcn config
+        ├── src/
+        │   ├── main.tsx                 # QueryClientProvider + Devtools
+        │   ├── App.tsx                  # Temp theme toggle + Button demo
+        │   ├── index.css                # Tailwind + shadcn dark tokens (#0a0a0a)
+        │   ├── components/ui/           # shadcn: button, card, dialog, input, calendar
+        │   ├── features/                # Feature folders (stubs for now)
+        │   │   ├── sleep-entry/
+        │   │   ├── dashboard/
+        │   │   ├── analytics/
+        │   │   ├── experiments/
+        │   │   └── reports/
+        │   ├── lib/
+        │   │   ├── api-client.ts        # fetch wrapper → VITE_API_URL / :4000
+        │   │   ├── queryClient.ts       # TanStack Query defaults
+        │   │   └── utils.ts             # cn() helper
+        │   ├── stores/
+        │   │   └── ui-store.ts          # Zustand sidebar UI state
+        │   └── types/
+        │       └── index.ts             # Frontend shared types
+
+================================================================================
+3. HOW THE ARCHITECTURE WORKS (request flow)
+================================================================================
+HTTP request
+  → routes/*.routes.ts          (parse params/body, status codes)
+    → services/*.service.ts     (validation + business rules / math)
+      → repositories/*.ts       (Prisma queries only)
+        → SQLite (dev.db)
+
+Rules:
+- Routes NEVER import Prisma.
+- Services NEVER import Express Request/Response (except AppError usage).
+- Analytics math (pearsonCorrelation, computeAnalyticsSummary) is PURE —
+  can be unit-tested with fake arrays, no Express, no DB.
+
+================================================================================
+4. DATABASE SCHEMA (Prisma / SQLite)
+================================================================================
+Models (7 tables):
+
+1) SleepEntry  — HUB: one row per calendar date (@unique date)
+   Fields: bedTime, attemptSleepTime, estimatedSleepTime, wakeTime,
+           outOfBedTime, numberOfAwakenings, sleepQuality (1-10),
+           energyMorning, energyWork, notes
+   Relations (optional 1:1): mood, food, exercise, environment, health
+
+2) MoodEntry — mood, stress, anxiety, motivation (ints)
+3) FoodEntry — mealBeforeSleep, mealTime, mealType, caffeineAmountMg,
+               caffeineLastConsumed
+4) ExerciseEntry — exercise, exerciseType, duration, workoutTime
+5) EnvironmentEntry — roomTemp, fan/ac, curtains, eyeMask, whiteNoise,
+                      phone use, sunlight/birds/fajr, screenBrightness
+6) HealthEntry — weight, restingHeartRate, bloodPressure
+7) Experiment — name, startDate, endDate (for Phase 1J before/after)
+
+Child tables hold sleepEntryId @unique + onDelete: Cascade.
+
+Seed: prisma/seed.ts creates 14 SleepEntry days with all children linked,
+plus 1 Experiment ("No phone after work").
+
+DATABASE_URL="file:./dev.db"
+
+================================================================================
+5. BACKEND FEATURES IMPLEMENTED + HOW THEY FUNCTION
+================================================================================
+
+----- 5.1 Server bootstrap -----
+- src/server.ts loads dotenv, imports app, listens on PORT (default 4000)
+- Hot reload: npm run dev → ts-node-dev --respawn --transpile-only src/server.ts
+- src/app.ts: cors, json, urlencoded, mounts routes, notFound + errorHandler
+
+----- 5.2 Prisma client -----
+- src/lib/prisma.ts
+- Prisma 7 requires a driver adapter:
+  PrismaBetterSqlite3({ url: DATABASE_URL }) → new PrismaClient({ adapter })
+
+----- 5.3 SleepEntry repository (Step 28) -----
+File: src/repositories/sleepEntry.repository.ts
+
+Functions:
+- findAll()
+  → prisma.sleepEntry.findMany({ include: all children, orderBy: date asc })
+  → returns seeded 14 rows with linked mood/food/exercise/environment/health
+
+- findByDate(date)
+  → findUnique({ where: { date }, include: ... })
+
+- findById(id)
+  → findUnique by id with includes
+
+- findBetween(start, end)
+  → date range query
+
+- upsert(date, data: SleepEntryInput)
+  → create or update sleep scalars
+  → nested upsert/create for mood, food, exercise, environment, health
+  → returns full entry with relations
+
+----- 5.4 SleepEntry service + routes (Step 29) -----
+Service (src/services/sleepEntry.service.ts):
+- parseEntryDate(value)
+  → "YYYY-MM-DD" → UTC midnight Date (stable unique key)
+  → full ISO strings accepted as-is; invalid → 400 AppError
+- list() → repository.findAll()
+- getById(id) → repository.findById or 404 (legacy helper)
+- getByDate(dateParam) → parse + findByDate or 404
+- upsertByDate(dateParam, data)
+  → parse date then repository.upsert (expects already-validated body)
+
+Routes (mounted at /api/sleep-entries):
+- GET /              → list all
+- GET /:date         → one entry by calendar date (e.g. 2026-07-09)
+- PUT /:date         → validateBody(sleepEntrySchema) THEN upsert
+  Frontend always works "by date"; PUT is the single write endpoint.
+
+----- 5.4b Zod validation (Step 30) -----
+Files:
+- src/schemas/sleepEntry.schema.ts — sleepEntrySchema (strict)
+- src/middleware/validate.ts — validateBody(schema)
+- ValidationError in errorMiddleware → 400 + { message, details[] }
+
+Rules:
+- sleepQuality / energy / mood scores: int 1–10
+- dates: z.coerce.date() (ISO strings OK)
+- rejects unknown keys; rejects sleepQuality 99/15 before DB
+- error example:
+  { "message": "Validation failed: sleepQuality: Too big...",
+    "details": [{ "path": "sleepQuality", "message": "..." }] }
+
+----- 5.5 Experiment repository / service / routes -----
+Repository: findAll, findById, create
+Service: validates name + dates, endDate >= startDate
+Routes (/api/experiments):
+- GET /
+- GET /:id
+- POST /  { name, startDate, endDate }
+
+----- 5.6 Analytics service (core logic) -----
+File: src/services/analytics.service.ts
+
+A) pearsonCorrelation(xs, ys): number | null
+   - Pure math
+   - Needs equal length arrays, n >= 2
+   - Returns null if denominator is 0
+   - Formula: sum((x-meanX)(y-meanY)) / sqrt(sum(dx^2)*sum(dy^2))
+
+B) computeAnalyticsSummary(entries): AnalyticsSummary
+   - Pure over in-memory SleepEntryWithRelations[]
+   - averageSleepQuality from non-null sleepQuality values
+   - Correlations vs sleepQuality for factors:
+       stress, anxiety, caffeineAmountMg, minutesPhoneBeforeSleep,
+       exerciseDuration
+   - Skips pairs where quality or factor is null
+   - Returns coefficient rounded to 4 decimals + sampleSize
+
+C) createAnalyticsService(reader)
+   - Injects a SleepEntryReader ({ findAll })
+   - getSummary() loads entries then computeAnalyticsSummary
+   - Routes use real repository; tests inject fake reader
+
+Route (/api/analytics):
+- GET /summary → analytics summary JSON
+
+----- 5.7 Export service + route -----
+- sleepEntriesToCsv(entries) — pure CSV builder
+- exportService.exportSleepEntriesCsv() — findAll then CSV
+- GET /api/export/sleep-entries.csv → text/csv download
+
+----- 5.8 Error handling -----
+- AppError(message, statusCode)
+- asyncHandler catches rejected promises → next(err)
+- errorHandler returns { message, stack? }
+- notFound for unknown paths
+
+----- 5.9 Health endpoints -----
+- GET /  and GET /api/health → { message: "SleepTracker API is running" }
+
+================================================================================
+6. FRONTEND FEATURES IMPLEMENTED + HOW THEY WORK
+================================================================================
+
+----- 6.1 Tooling -----
+- Vite 8 + React 19 + TypeScript
+- Tailwind CSS v4 via @tailwindcss/vite
+- shadcn/ui (radix-nova): button, card, dialog, input, calendar
+- Path alias @/* → src/*
+- Dark mode DEFAULT: <html class="dark"> + @custom-variant dark
+  Background token #0a0a0a (Linear/GitHub-like)
+
+----- 6.2 State / data libraries installed -----
+- @tanstack/react-query + Devtools (QueryClientProvider in main.tsx)
+- zustand (ui-store: sidebarOpen)
+- react-hook-form + zod + @hookform/resolvers
+- recharts, date-fns
+
+----- 6.3 Feature folder architecture (stubs) -----
+features/sleep-entry, dashboard, analytics, experiments, reports
+Each has index.ts barrel — domain code will live here later.
+Shared UI in components/; shared types in types/; API in lib/api-client.ts
+
+----- 6.4 Current UI -----
+App.tsx: SleepTracker title + shadcn Button + temporary theme toggle
+(for verifying dark/light). Not production UI yet.
+
+----- 6.5 api-client -----
+fetch wrapper with JSON body, ApiError on non-OK.
+Base URL: import.meta.env.VITE_API_URL ?? http://localhost:5000/api
+NOTE: Backend currently runs on PORT 4000 — frontend default may need
+VITE_API_URL=http://localhost:4000/api when wiring real calls.
+
+================================================================================
+7. API REFERENCE (current)
+================================================================================
+Base: http://localhost:4000
+
+GET  /                         health JSON
+GET  /api/health               health JSON
+GET  /api/sleep-entries              all sleep entries + relations
+GET  /api/sleep-entries/:date        one entry by date (YYYY-MM-DD)
+PUT  /api/sleep-entries/:date        upsert that day (JSON body)
+GET  /api/experiments                all experiments
+GET  /api/experiments/:id            one experiment
+POST /api/experiments                create { name, startDate, endDate }
+GET  /api/analytics/summary          { entryCount, averageSleepQuality, correlations }
+GET  /api/export/sleep-entries.csv
+
+================================================================================
+8. HOW TO RUN
+================================================================================
+Backend:
+  cd Backend
+  npm install
+  npx prisma migrate dev        # if DB missing
+  npx prisma db seed            # 14 days of data
+  npm run dev                   # http://localhost:4000
+
+Frontend:
+  cd Frontend/sleeptracker
+  npm install
+  npm run dev
+
+Prisma Studio:
+  cd Backend && npx prisma studio   # http://localhost:5555
+
+Tests (Backend):
+  cd Backend
+  npm test                      # runs tests/run-all.ts (unit + repo)
+  npm run test:api              # optional HTTP smoke (server must be up)
+
+================================================================================
+9. WHAT IS NOT DONE YET (upcoming phases)
+================================================================================
+- Frontend forms (RHF + Zod) for daily logging hitting PUT /:date
+- Dashboard / charts (Recharts) consuming analytics
+- Experiment before/after analysis UI
+- Auth (if needed later)
+- Remove unused mongoose/jwt deps
+- Align frontend VITE_API_URL with backend PORT 4000
+
+================================================================================
+10. AGENT WORKFLOW (MANDATORY FOR EVERY FUTURE PROMPT)
+================================================================================
+1. Read this Summary.txt first for context.
+2. Implement the requested change.
+3. Add or update a test under Backend/tests/ covering the change.
+4. Run: cd Backend && npm test
+5. If API routes changed and server is running, also run: npm run test:api
+6. ONLY keep code that passes tests.
+7. Append a CHANGE LOG entry below with: date, prompt summary, files touched,
+   tests run, result.
+
+================================================================================
+11. CHANGE LOG
+================================================================================
+
+[2026-07-10] Step 30 — Zod validation middleware
+- Added sleepEntrySchema + validateBody on PUT /api/sleep-entries/:date.
+- ValidationError returns 400 with message + details before DB.
+- Tests: sleepEntry.validation.test.ts + API smoke invalid quality.
+- Files: schemas/sleepEntry.schema.ts, middleware/validate.ts,
+  errorMiddleware.ts, sleepEntry.routes.ts, sleepEntry.service.ts, tests/*
+- TESTED: npm test → ALL TESTS PASSED (incl. 4 Zod tests).
+- TESTED: curl PUT sleepQuality:99 → HTTP 400 clear validation message.
+- TESTED: npm run test:api → API SMOKE PASSED (6 checks).
+
+[2026-07-10] Step 29 — SleepEntry date-based CRUD routes
+- Routes: GET/PUT /api/sleep-entries/:date (upsert-by-day).
+- Service: parseEntryDate, getByDate, upsertByDate + body datetime coercion.
+- Tests: Backend/tests/sleepEntry.service.test.ts; API smoke PUT+GET.
+- Files: sleepEntry.routes.ts, sleepEntry.service.ts, tests/*, Summary.txt
+- TESTED: npm test → ALL TESTS PASSED (5 analytics + 3 repo + 3 service).
+- TESTED: curl PUT /api/sleep-entries/2026-07-09 → saved record with mood/food.
+- TESTED: npm run test:api → API SMOKE PASSED (5 endpoints).
+
+[2026-07-10] Initial documentation + tests folder
+- Documented all work from Phase 0 through Step 28.
+- Created Backend/tests/ with analytics unit tests, repository tests,
+  API smoke tests, and run-all runner.
+- Added npm test / test:api scripts.
+- Moved verification out of ad-hoc scripts into tests/.
+- TESTED: npm test → ALL TESTS PASSED (5 analytics + 3 repository).
+- TESTED: npm run test:api → API SMOKE PASSED (4 endpoints).
+
+--------------------------------------------------------------------------------
+END OF SUMMARY (append new change-log entries above this line going forward)
+--------------------------------------------------------------------------------

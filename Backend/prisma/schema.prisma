@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model SleepEntry {
+  id                 String    @id @default(cuid())
+  date               DateTime  @unique
+  bedTime            DateTime?
+  attemptSleepTime   DateTime?
+  estimatedSleepTime DateTime?
+  wakeTime           DateTime?
+  outOfBedTime       DateTime?
+  numberOfAwakenings Int?
+  sleepQuality       Int? // 1-10
+  energyMorning      Int? // 1-10
+  energyWork         Int? // 1-10
+  notes              String?
+
+  mood        MoodEntry?
+  food        FoodEntry?
+  exercise    ExerciseEntry?
+  environment EnvironmentEntry?
+  health      HealthEntry?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MoodEntry {
+  id           String     @id @default(cuid())
+  sleepEntry   SleepEntry @relation(fields: [sleepEntryId], references: [id], onDelete: Cascade)
+  sleepEntryId String     @unique
+  mood         Int
+  stress       Int
+  anxiety      Int
+  motivation   Int
+}
+
+model FoodEntry {
+  id                   String     @id @default(cuid())
+  sleepEntry           SleepEntry @relation(fields: [sleepEntryId], references: [id], onDelete: Cascade)
+  sleepEntryId         String     @unique
+  mealBeforeSleep      Boolean
+  mealTime             DateTime?
+  mealType             String?
+  caffeineAmountMg     Int?
+  caffeineLastConsumed DateTime?
+}
+
+model ExerciseEntry {
+  id           String     @id @default(cuid())
+  sleepEntry   SleepEntry @relation(fields: [sleepEntryId], references: [id], onDelete: Cascade)
+  sleepEntryId String     @unique
+  exercise     Boolean
+  exerciseType String?
+  duration     Int?
+  workoutTime  DateTime?
+}
+
+model EnvironmentEntry {
+  id                      String     @id @default(cuid())
+  sleepEntry              SleepEntry @relation(fields: [sleepEntryId], references: [id], onDelete: Cascade)
+  sleepEntryId            String     @unique
+  roomTemp                Float?
+  fanOn                   Boolean?
+  acOn                    Boolean?
+  blackoutCurtains        Boolean?
+  eyeMask                 Boolean?
+  whiteNoise              Boolean?
+  phoneUsedBeforeSleep    Boolean?
+  minutesPhoneBeforeSleep Int?
+  sunlightSeenBeforeSleep Boolean?
+  birdsHeard              Boolean?
+  fajrHeard               Boolean?
+  screenBrightness        Int?
+}
+
+model HealthEntry {
+  id               String     @id @default(cuid())
+  sleepEntry       SleepEntry @relation(fields: [sleepEntryId], references: [id], onDelete: Cascade)
+  sleepEntryId     String     @unique
+  weight           Float?
+  restingHeartRate Int?
+  bloodPressure    String?
+}
+
+model Experiment {
+  id        String   @id @default(cuid())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+}
