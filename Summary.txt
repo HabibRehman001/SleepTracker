@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-10 (after Step 40 — natural language insights)
+Last updated: 2026-07-10 (after Step 42 — Vitest analytics unit tests)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -60,9 +60,10 @@ SleepTracker/
 │   │   │   └── experiment.repository.ts
 │   │   ├── services/                    # BUSINESS LOGIC (no Express)
 │   │   │   ├── analytics.service.ts     # Pearson correlation + summary
+│   │   │   ├── analytics.service.test.ts # Vitest pure unit tests (Step 42)
 │   │   │   ├── sleepEntry.service.ts
 │   │   │   ├── experiment.service.ts
-│   │   │   └── export.service.ts        # CSV export
+│   │   │   └── export.service.ts        # CSV + Step 41 JSON/CSV stubs
 │   │   ├── routes/                      # HTTP ONLY → calls services
 │   │   │   ├── sleepEntry.routes.ts
 │   │   │   ├── experiment.routes.ts
@@ -76,6 +77,7 @@ SleepTracker/
 │       ├── analytics.service.test.ts    # Pure unit tests (no DB/HTTP)
 │       ├── sleepEntry.repository.test.ts
 │       ├── api.smoke.test.ts            # HTTP smoke (needs server running)
+│       ├── export.stub.test.ts          # Step 41 export stub unit tests
 │       └── helpers.ts
 │
 └── Frontend/
@@ -164,7 +166,9 @@ DATABASE_URL="file:./dev.db"
 ----- 5.2 Prisma client -----
 - src/lib/prisma.ts
 - Prisma 7 requires a driver adapter:
-  PrismaBetterSqlite3({ url: DATABASE_URL }) → new PrismaClient({ adapter })
+  PrismaBetterSqlite3({ url }) → new PrismaClient({ adapter })
+- Loads Backend/.env via dotenv; SQLite URL resolved to absolute
+  Backend/dev.db so tests/cwd changes do not break the DB path.
 
 ----- 5.3 SleepEntry repository (Step 28) -----
 File: src/repositories/sleepEntry.repository.ts
@@ -289,9 +293,12 @@ Routes:
 - GET /api/stats/summary → computeSummary(findAll())  (Step 34)
 
 ----- 5.7 Export service + route -----
-- sleepEntriesToCsv(entries) — pure CSV builder
+- sleepEntriesToCsv(entries) — pure CSV builder (working path)
 - exportService.exportSleepEntriesCsv() — findAll then CSV
 - GET /api/export/sleep-entries.csv → text/csv download
+- Step 41 stubs (full impl Phase 1K steps 104–106):
+  - GET /api/export/json → { status:'stub', format:'json', plannedSteps, entryCount }
+  - GET /api/export/csv → stub CSV text (Content-Disposition attachment)
 
 ----- 5.8 Error handling -----
 - AppError(message, statusCode)
@@ -352,7 +359,9 @@ GET  /api/analytics/summary          correlations + avg quality (Pearson legacy)
 GET  /api/analytics/correlations     factor group cards (phone, sunrise, meal, weekday)
 GET  /api/analytics/insights         natural-language strings from latency gaps >15m
 GET  /api/stats/summary              dashboard window stats (7/30 day)
-GET  /api/export/sleep-entries.csv
+GET  /api/export/sleep-entries.csv   working CSV download
+GET  /api/export/json                stub JSON (full in steps 104–106)
+GET  /api/export/csv                 stub CSV  (full in steps 104–106)
 
 ================================================================================
 8. HOW TO RUN
@@ -401,6 +410,26 @@ Tests (Backend):
 ================================================================================
 11. CHANGE LOG
 ================================================================================
+
+[2026-07-10] Step 42 — Backend Vitest unit tests (analytics.service)
+- Installed vitest (-D); vitest.config.ts (node env, src/**/*.test.ts).
+- Added src/services/analytics.service.test.ts — hand-built fake entries, no DB.
+- 2-entry fixture: computeSummary → todaySleep=6, avg7/30=7, sleepDebt=120,
+  avgLatency=45, avgBedtime=22:00, avgWakeTime=06:00, consistencyScore=100.
+- Also covers pearson, duration, latency, sleepDebt, consistencyScore.
+- npm script: test:unit → vitest run (legacy npm test runner unchanged).
+- TESTED: npx vitest run → 11 passed.
+- TESTED: npm test → ALL TESTS PASSED.
+
+[2026-07-10] Step 41 — Export routes (CSV/JSON stubs)
+- Added GET /api/export/json and GET /api/export/csv stubs (Phase 1K 104–106).
+- Kept working GET /api/export/sleep-entries.csv.
+- exportService.exportJsonStub / exportCsvStub return stub metadata + entryCount.
+- Tests: Backend/tests/export.stub.test.ts + API smoke stub checks.
+- Fixed DATABASE_URL back to SQLite file:./dev.db (was wrongly Mongo URI).
+- prisma.ts resolves absolute Backend/dev.db so cwd/tests cannot break the path.
+- TESTED: npm test → ALL TESTS PASSED (incl. export stubs).
+- TESTED: npm run test:api → API SMOKE PASSED (incl. /export/json + /export/csv).
 
 [2026-07-10] Step 40 — Natural language insights
 - generateInsights(): only gaps |latencyA−B| > 15; templated sentences.

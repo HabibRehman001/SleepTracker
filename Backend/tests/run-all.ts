@@ -1,6 +1,7 @@
 import { prisma } from '../src/lib/prisma'
 import { runAnalyticsServiceTests } from './analytics.service.test'
 import { runCorrelationsTests } from './correlations.test'
+import { runExportStubTests } from './export.stub.test'
 import { runInsightsTests } from './insights.test'
 import { runSleepEntryRepositoryTests } from './sleepEntry.repository.test'
 import { runSleepEntryServiceTests } from './sleepEntry.service.test'
@@ -13,6 +14,7 @@ async function main() {
   const analyticsOk = await runAnalyticsServiceTests()
   const correlationsOk = await runCorrelationsTests()
   const insightsOk = await runInsightsTests()
+  const exportOk = await runExportStubTests()
   const validationOk = await runSleepEntryValidationTests()
   const repoOk = await runSleepEntryRepositoryTests()
   const sleepServiceOk = await runSleepEntryServiceTests()
@@ -21,6 +23,7 @@ async function main() {
     analyticsOk &&
     correlationsOk &&
     insightsOk &&
+    exportOk &&
     validationOk &&
     repoOk &&
     sleepServiceOk

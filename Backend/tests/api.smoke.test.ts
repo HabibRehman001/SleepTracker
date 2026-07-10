@@ -110,6 +110,28 @@ export async function runApiSmokeTests(): Promise<boolean> {
   )
 
   results.push(
+    await runTest('GET /api/export/json stub', async () => {
+      const { status, body } = await getJson('/api/export/json')
+      assertEqual(status, 200, 'status')
+      assert(body && typeof body === 'object', 'object')
+      const stub = body as { status: string; format: string; plannedSteps: string }
+      assertEqual(stub.status, 'stub', 'stub status')
+      assertEqual(stub.format, 'json', 'format')
+      assertEqual(stub.plannedSteps, '104-106', 'plannedSteps')
+    })
+  )
+
+  results.push(
+    await runTest('GET /api/export/csv stub', async () => {
+      const response = await fetch(`${BASE_URL}/api/export/csv`)
+      assertEqual(response.status, 200, 'status')
+      const text = await response.text()
+      assert(text.includes('status,stub'), 'stub csv')
+      assert(text.includes('104-106'), 'planned steps note')
+    })
+  )
+
+  results.push(
     await runTest('PUT then GET /api/sleep-entries/:date', async () => {
       const date = '2026-07-09'
       const payload = {

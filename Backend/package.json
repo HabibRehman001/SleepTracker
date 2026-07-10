@@ -9,6 +9,7 @@
     "start": "node dist/src/server.js",
     "db:seed": "prisma db seed",
     "test": "tsx tests/run-all.ts",
+    "test:unit": "vitest run",
     "test:api": "tsx tests/run-api.ts"
   },
   "keywords": [],
@@ -36,6 +37,7 @@
     "prisma": "^7.8.0",
     "ts-node-dev": "^2.0.0",
     "tsx": "^4.23.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.10"
   }
 }

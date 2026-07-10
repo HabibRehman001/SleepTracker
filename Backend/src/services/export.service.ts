@@ -63,4 +63,34 @@ export const exportService = {
     const entries = await sleepEntryRepository.findAll()
     return sleepEntriesToCsv(entries)
   },
+
+  /** Step 41 stub — full JSON export in steps 104–106. */
+  async exportJsonStub(): Promise<{
+    status: 'stub'
+    format: 'json'
+    message: string
+    plannedSteps: string
+    entryCount: number
+  }> {
+    const entries = await sleepEntryRepository.findAll()
+    return {
+      status: 'stub',
+      format: 'json',
+      message:
+        'JSON export stub. Full nested export lands in Phase 1K (steps 104–106).',
+      plannedSteps: '104-106',
+      entryCount: entries.length,
+    }
+  },
+
+  /** Step 41 stub — full CSV export polish in steps 104–106. */
+  async exportCsvStub(): Promise<string> {
+    const entries = await sleepEntryRepository.findAll()
+    return [
+      '# SleepTracker CSV export stub',
+      '# Full implementation: steps 104-106 (Phase 1K)',
+      `entryCount,${entries.length}`,
+      'status,stub',
+    ].join('\n')
+  },
 }
