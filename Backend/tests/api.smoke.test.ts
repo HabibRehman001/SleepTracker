@@ -45,6 +45,62 @@ export async function runApiSmokeTests(): Promise<boolean> {
   )
 
   results.push(
+    await runTest('GET /api/analytics/correlations includes phone factor', async () => {
+      const { status, body } = await getJson('/api/analytics/correlations')
+      assertEqual(status, 200, 'status')
+      assert(Array.isArray(body), 'array body')
+      const rows = body as Array<{
+        factor: string
+        groupA: { n: number; avgLatency: number | null; avgQuality: number | null }
+        groupB: { n: number; avgLatency: number | null; avgQuality: number | null }
+      }>
+      const phone = rows.find((row) => row.factor === 'phoneUsedBeforeSleep')
+      assert(phone, 'phoneUsedBeforeSleep entry')
+      assert(phone.groupA.n > 0 && phone.groupB.n > 0, 'mixed phone days')
+      assert(
+        phone.groupA.avgQuality !== null || phone.groupB.avgQuality !== null,
+        'computed averages'
+      )
+    })
+  )
+
+  results.push(
+    await runTest('GET /api/analytics/insights returns string array', async () => {
+      const { status, body } = await getJson('/api/analytics/insights')
+      assertEqual(status, 200, 'status')
+      assert(Array.isArray(body), 'array body')
+      assert(
+        (body as unknown[]).every((item) => typeof item === 'string'),
+        'all strings'
+      )
+    })
+  )
+
+  results.push(
+    await runTest('GET /api/stats/summary returns computed fields', async () => {
+      const { status, body } = await getJson('/api/stats/summary')
+      assertEqual(status, 200, 'status')
+      assert(body && typeof body === 'object', 'object body')
+      const stats = body as Record<string, unknown>
+      for (const key of [
+        'todaySleep',
+        'sleepDebt',
+        'avg7day',
+        'avg30day',
+        'consistencyScore',
+        'avgBedtime',
+        'avgWakeTime',
+        'avgLatency',
+      ]) {
+        assert(key in stats, `missing ${key}`)
+      }
+      assert(typeof stats.avg7day === 'number', 'avg7day is number')
+      assert(typeof stats.sleepDebt === 'number', 'sleepDebt is minutes number')
+      assert(stats.sleepDebt >= 0, 'sleepDebt never negative')
+    })
+  )
+
+  results.push(
     await runTest('GET /api/export/sleep-entries.csv', async () => {
       const response = await fetch(`${BASE_URL}/api/export/sleep-entries.csv`)
       assertEqual(response.status, 200, 'status')
@@ -105,6 +161,68 @@ export async function runApiSmokeTests(): Promise<boolean> {
         'sleepQuality in details'
       )
     })
+  )
+
+  results.push(
+    await runTest(
+      'PUT nested mood/food/exercise/environment/health in one request',
+      async () => {
+        const date = '2099-03-03'
+        const payload = {
+          bedTime: '2099-03-03T22:30:00.000Z',
+          wakeTime: '2099-03-04T06:30:00.000Z',
+          sleepQuality: 8,
+          notes: 'nested-api-put',
+          mood: { mood: 8, stress: 2, anxiety: 2, motivation: 8 },
+          food: { mealBeforeSleep: false, caffeineAmountMg: 55 },
+          exercise: { exercise: true, exerciseType: 'yoga', duration: 20 },
+          environment: {
+            phoneUsedBeforeSleep: false,
+            minutesPhoneBeforeSleep: 0,
+            roomTemp: 21.5,
+            whiteNoise: true,
+          },
+          health: {
+            weight: 70.5,
+            restingHeartRate: 59,
+            bloodPressure: '117/75',
+          },
+        }
+
+        const putResponse = await fetch(`${BASE_URL}/api/sleep-entries/${date}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        const putBody = await putResponse.json()
+        assertEqual(putResponse.status, 200, 'PUT status')
+        assert(putBody.bedTime, 'bedTime on SleepEntry')
+        assert(putBody.mood, 'MoodEntry populated')
+        assert(putBody.food, 'FoodEntry populated')
+        assert(putBody.exercise, 'ExerciseEntry populated')
+        assert(putBody.environment, 'EnvironmentEntry populated')
+        assert(putBody.health, 'HealthEntry populated')
+        assertEqual(putBody.mood.stress, 2, 'mood stress')
+        assertEqual(putBody.food.caffeineAmountMg, 55, 'food caffeine')
+        assertEqual(putBody.exercise.duration, 20, 'exercise duration')
+        assertEqual(putBody.environment.whiteNoise, true, 'env whiteNoise')
+        assertEqual(putBody.health.restingHeartRate, 59, 'health rhr')
+
+        // one PUT must touch SleepEntry + all 5 child tables
+        const childTables = [
+          putBody.mood,
+          putBody.food,
+          putBody.exercise,
+          putBody.environment,
+          putBody.health,
+        ]
+        assertEqual(
+          childTables.filter(Boolean).length,
+          5,
+          'all 5 child tables populated'
+        )
+      }
+    )
   )
 
   return results.every(Boolean)

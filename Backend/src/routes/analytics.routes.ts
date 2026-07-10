@@ -14,4 +14,21 @@ router.get(
   })
 )
 
+router.get(
+  '/correlations',
+  asyncHandler(async (_req, res) => {
+    const entries = await sleepEntryRepository.findAll()
+    res.status(200).json(analyticsService.computeCorrelations(entries))
+  })
+)
+
+router.get(
+  '/insights',
+  asyncHandler(async (_req, res) => {
+    const entries = await sleepEntryRepository.findAll()
+    const correlations = analyticsService.computeCorrelations(entries)
+    res.status(200).json(analyticsService.generateInsights(correlations))
+  })
+)
+
 export default router

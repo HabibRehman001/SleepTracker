@@ -90,6 +90,7 @@ export type SleepEntryWithRelations = {
     phoneUsedBeforeSleep: boolean | null
     minutesPhoneBeforeSleep: number | null
     roomTemp: number | null
+    sunlightSeenBeforeSleep?: boolean | null
   } | null
   health: {
     weight: number | null
@@ -103,10 +104,36 @@ export type CorrelationResult = {
   sampleSize: number
 }
 
+/** Group comparison for boolean/categorical factors (Step 39). */
+export type FactorGroupStats = {
+  label: string
+  avgLatency: number | null
+  avgQuality: number | null
+  n: number
+}
+
+export type FactorCorrelation = {
+  factor: string
+  groupA: FactorGroupStats
+  groupB: FactorGroupStats
+}
+
 export type AnalyticsSummary = {
   entryCount: number
   averageSleepQuality: number | null
   correlations: CorrelationResult[]
+}
+
+/** Rolling window + schedule stats for dashboard (Step 34). */
+export type StatsSummary = {
+  todaySleep: number | null // hours slept on most recent entry night
+  sleepDebt: number // minutes short of 8h target over last 7 nights (deficit only, never negative)
+  avg7day: number | null // avg sleep hours over last 7 entries
+  avg30day: number | null // avg sleep hours over last 30 entries
+  consistencyScore: number // 0-100 from bedtime stdev (100 - min(100, stdev))
+  avgBedtime: string | null // HH:mm (24h, circular mean)
+  avgWakeTime: string | null // HH:mm
+  avgLatency: number | null // minutes from attemptSleep → estimatedSleep
 }
 
 export type ExperimentRecord = {

@@ -3,12 +3,19 @@ import cors from 'cors'
 import sleepEntryRoutes from './routes/sleepEntry.routes'
 import experimentRoutes from './routes/experiment.routes'
 import analyticsRoutes from './routes/analytics.routes'
+import statsRoutes from './routes/stats.routes'
 import exportRoutes from './routes/export.routes'
 import { errorHandler, notFound } from './middleware/errorMiddleware'
 
 const app = express()
 
-app.use(cors())
+const corsOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:5173'
+
+app.use(
+  cors({
+    origin: corsOrigin,
+  })
+)
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 
@@ -23,6 +30,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/sleep-entries', sleepEntryRoutes)
 app.use('/api/experiments', experimentRoutes)
 app.use('/api/analytics', analyticsRoutes)
+app.use('/api/stats', statsRoutes)
 app.use('/api/export', exportRoutes)
 
 app.use(notFound)

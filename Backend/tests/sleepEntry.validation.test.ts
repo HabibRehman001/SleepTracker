@@ -46,5 +46,36 @@ export async function runSleepEntryValidationTests(): Promise<boolean> {
     })
   )
 
+  results.push(
+    await runTest('accepts full nested child payload', () => {
+      const result = sleepEntrySchema.safeParse({
+        sleepQuality: 7,
+        mood: { mood: 6, stress: 4, anxiety: 3, motivation: 7 },
+        food: { mealBeforeSleep: true, caffeineAmountMg: 100 },
+        exercise: { exercise: true, exerciseType: 'walk', duration: 30 },
+        environment: {
+          phoneUsedBeforeSleep: false,
+          minutesPhoneBeforeSleep: 0,
+          roomTemp: 22,
+        },
+        health: { weight: 70, restingHeartRate: 60, bloodPressure: '120/80' },
+      })
+      assertEqual(result.success, true, 'nested payload should pass')
+    })
+  )
+
+  results.push(
+    await runTest('rejects invalid nested mood.stress', () => {
+      const result = sleepEntrySchema.safeParse({
+        mood: { mood: 5, stress: 15, anxiety: 3, motivation: 5 },
+      })
+      assertEqual(result.success, false, 'should fail')
+      if (!result.success) {
+        const path = result.error.issues[0]?.path.join('.')
+        assertEqual(path, 'mood.stress', 'nested path')
+      }
+    })
+  )
+
   return results.every(Boolean)
 }

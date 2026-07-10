@@ -1,5 +1,7 @@
 import { prisma } from '../src/lib/prisma'
 import { runAnalyticsServiceTests } from './analytics.service.test'
+import { runCorrelationsTests } from './correlations.test'
+import { runInsightsTests } from './insights.test'
 import { runSleepEntryRepositoryTests } from './sleepEntry.repository.test'
 import { runSleepEntryServiceTests } from './sleepEntry.service.test'
 import { runSleepEntryValidationTests } from './sleepEntry.validation.test'
@@ -9,11 +11,20 @@ async function main() {
   console.log('==========================')
 
   const analyticsOk = await runAnalyticsServiceTests()
+  const correlationsOk = await runCorrelationsTests()
+  const insightsOk = await runInsightsTests()
   const validationOk = await runSleepEntryValidationTests()
   const repoOk = await runSleepEntryRepositoryTests()
   const sleepServiceOk = await runSleepEntryServiceTests()
 
-  const ok = analyticsOk && validationOk && repoOk && sleepServiceOk
+  const ok =
+    analyticsOk &&
+    correlationsOk &&
+    insightsOk &&
+    validationOk &&
+    repoOk &&
+    sleepServiceOk
+
 
   console.log('\n==========================')
   console.log(ok ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED')

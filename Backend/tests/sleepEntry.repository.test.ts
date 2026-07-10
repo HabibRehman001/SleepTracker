@@ -62,5 +62,78 @@ export async function runSleepEntryRepositoryTests(): Promise<boolean> {
     })
   )
 
+  results.push(
+    await runTest(
+      'upsert nested mood/food/exercise/environment/health in one write',
+      async () => {
+        const date = new Date('2099-02-02T00:00:00.000Z')
+
+        const created = await sleepEntryRepository.upsert(date, {
+          sleepQuality: 7,
+          notes: 'nested-children-create',
+          mood: { mood: 6, stress: 4, anxiety: 3, motivation: 7 },
+          food: {
+            mealBeforeSleep: true,
+            mealType: 'light snack',
+            caffeineAmountMg: 120,
+            caffeineLastConsumed: new Date('2099-02-01T15:00:00.000Z'),
+          },
+          exercise: {
+            exercise: true,
+            exerciseType: 'run',
+            duration: 45,
+            workoutTime: new Date('2099-02-01T18:00:00.000Z'),
+          },
+          environment: {
+            roomTemp: 22.5,
+            fanOn: true,
+            acOn: false,
+            blackoutCurtains: true,
+            phoneUsedBeforeSleep: true,
+            minutesPhoneBeforeSleep: 25,
+            screenBrightness: 40,
+          },
+          health: {
+            weight: 71.2,
+            restingHeartRate: 58,
+            bloodPressure: '118/76',
+          },
+        })
+
+        assert(created.mood, 'mood created')
+        assert(created.food, 'food created')
+        assert(created.exercise, 'exercise created')
+        assert(created.environment, 'environment created')
+        assert(created.health, 'health created')
+        assertEqual(created.mood!.mood, 6, 'mood value')
+        assertEqual(created.food!.caffeineAmountMg, 120, 'caffeine')
+        assertEqual(created.exercise!.duration, 45, 'exercise duration')
+        assertEqual(created.environment!.minutesPhoneBeforeSleep, 25, 'phone mins')
+        assertEqual(created.health!.restingHeartRate, 58, 'rhr')
+
+        const updated = await sleepEntryRepository.upsert(date, {
+          sleepQuality: 9,
+          mood: { mood: 9, stress: 2, anxiety: 1, motivation: 9 },
+          food: { mealBeforeSleep: false, caffeineAmountMg: 40 },
+          exercise: { exercise: false, duration: null },
+          environment: {
+            phoneUsedBeforeSleep: false,
+            minutesPhoneBeforeSleep: 0,
+            roomTemp: 21,
+          },
+          health: { weight: 71.0, restingHeartRate: 56, bloodPressure: '116/74' },
+        })
+
+        assertEqual(updated.mood!.stress, 2, 'mood updated')
+        assertEqual(updated.food!.mealBeforeSleep, false, 'food updated')
+        assertEqual(updated.exercise!.exercise, false, 'exercise updated')
+        assertEqual(updated.environment!.minutesPhoneBeforeSleep, 0, 'env updated')
+        assertEqual(updated.health!.restingHeartRate, 56, 'health updated')
+
+        await prisma.sleepEntry.delete({ where: { date } })
+      }
+    )
+  )
+
   return results.every(Boolean)
 }

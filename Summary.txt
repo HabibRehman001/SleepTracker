@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-10 (after Step 30 — Zod validation middleware)
+Last updated: 2026-07-10 (after Step 40 — natural language insights)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -67,6 +67,7 @@ SleepTracker/
 │   │   │   ├── sleepEntry.routes.ts
 │   │   │   ├── experiment.routes.ts
 │   │   │   ├── analytics.routes.ts
+│   │   │   ├── stats.routes.ts          # GET /api/stats/summary
 │   │   │   └── export.routes.ts
 │   │   └── types/
 │   │       └── index.ts                 # Shared TS types / inputs
@@ -153,6 +154,13 @@ DATABASE_URL="file:./dev.db"
 - Hot reload: npm run dev → ts-node-dev --respawn --transpile-only src/server.ts
 - src/app.ts: cors, json, urlencoded, mounts routes, notFound + errorHandler
 
+----- 5.1b CORS for local Vite (Step 32) -----
+- app.use(cors({ origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173' }))
+- .env CORS_ORIGIN=http://localhost:5173
+- Frontend api-client default base: http://localhost:4000/api
+- Preflight OPTIONS for PUT works; ACAO header = Vite origin
+- Test: Backend/tests/cors.test.ts (run via npm run test:api)
+
 ----- 5.2 Prisma client -----
 - src/lib/prisma.ts
 - Prisma 7 requires a driver adapter:
@@ -211,6 +219,25 @@ Rules:
   { "message": "Validation failed: sleepQuality: Too big...",
     "details": [{ "path": "sleepQuality", "message": "..." }] }
 
+----- 5.4c Nested child entries (Step 33) -----
+DESIGN: NO separate /mood /food /exercise /environment /health routes.
+Child tables are 1:1 with SleepEntry, so one form submit = one PUT.
+
+PUT /api/sleep-entries/:date accepts nested JSON:
+  {
+    sleepQuality, bedTime, wakeTime, notes, ...
+    mood: { mood, stress, anxiety, motivation },
+    food: { mealBeforeSleep, caffeineAmountMg, ... },
+    exercise: { exercise, exerciseType, duration, ... },
+    environment: { roomTemp, phoneUsedBeforeSleep, ... },
+    health: { weight, restingHeartRate, bloodPressure }
+  }
+
+Repository upsert does nested writes:
+- create: mood/food/... { create: data }
+- update: mood/food/... { upsert: { create, update } }
+Zod validates nested objects; invalid mood.stress → 400 before DB.
+
 ----- 5.5 Experiment repository / service / routes -----
 Repository: findAll, findById, create
 Service: validates name + dates, endDate >= startDate
@@ -223,27 +250,43 @@ Routes (/api/experiments):
 File: src/services/analytics.service.ts
 
 A) pearsonCorrelation(xs, ys): number | null
-   - Pure math
-   - Needs equal length arrays, n >= 2
-   - Returns null if denominator is 0
-   - Formula: sum((x-meanX)(y-meanY)) / sqrt(sum(dx^2)*sum(dy^2))
+B) computeAnalyticsSummary(entries) — correlations vs sleepQuality
+C) sleepDurationMinutes(entry)  (Step 35)
+   - Uses date-fns differenceInMinutes(wake, estimatedSleep|attempt|bed)
+   - Full Date timestamps only — correct overnight math (no time-of-day-only)
+   - 2026-07-09 04:00 → 12:00 = 480; overnight 23:30 → next 07:00 = 450
+D) sleepDebt(entries)  (Step 36)
+   - TARGET_MINUTES = 8*60; last 7 nights only
+   - debt += max(0, TARGET - duration); missing duration → treat as on-target
+   - 7×8h → 0; 7×6h → 840 minutes (14h)
+E) consistencyScore(entries)  (Step 37)
+   - bedtimes = minutesSinceMidnight(bedTime); filter missing
+   - score = 100 - min(100, circularStdev(bedtimes))
+   - identical beds → 100; wildly varying → near 0
+F) latencyMinutes(entry)  (Step 38)
+   - Requires attemptSleepTime AND estimatedSleepTime
+   - differenceInMinutes(estimated, attempt); null if missing/negative
+   - 04:00 → 05:27 = 87 minutes
+G) computeSummary(entries): StatsSummary  (Step 34)
+   Pure, all derived from entries (hours via sleepDurationMinutes/60):
+   - todaySleep, sleepDebt (minutes), avg7day, avg30day, consistencyScore,
+     avgBedtime, avgWakeTime, avgLatency (mean latencyMinutes)
+H) computeCorrelations(entries)  (Step 39)
+   Returns [{ factor, groupA:{label,avgLatency,avgQuality,n}, groupB:{...} }]
+   Factors: phoneUsedBeforeSleep, sunlightSeenBeforeSleep, mealBeforeSleep,
+            weekdayWeekend
+   Seeded mix: phone yes n=9 / no n=7 with real avgLatency + avgQuality
+I) generateInsights(correlations)  (Step 40)
+   Templated NL from computed gaps only (never hardcoded facts)
+   Filter: |avgLatency A − B| > 15 minutes
+   Phone template: "Using phone before sleep changed your average latency by N minutes."
+   Test: synthetic |92−5|=87 → sentence contains exact "87"
 
-B) computeAnalyticsSummary(entries): AnalyticsSummary
-   - Pure over in-memory SleepEntryWithRelations[]
-   - averageSleepQuality from non-null sleepQuality values
-   - Correlations vs sleepQuality for factors:
-       stress, anxiety, caffeineAmountMg, minutesPhoneBeforeSleep,
-       exerciseDuration
-   - Skips pairs where quality or factor is null
-   - Returns coefficient rounded to 4 decimals + sampleSize
-
-C) createAnalyticsService(reader)
-   - Injects a SleepEntryReader ({ findAll })
-   - getSummary() loads entries then computeAnalyticsSummary
-   - Routes use real repository; tests inject fake reader
-
-Route (/api/analytics):
-- GET /summary → analytics summary JSON
+Routes:
+- GET /api/analytics/summary → Pearson correlations (legacy)
+- GET /api/analytics/correlations → factor group cards (Step 39)
+- GET /api/analytics/insights → string[] insights (Step 40)
+- GET /api/stats/summary → computeSummary(findAll())  (Step 34)
 
 ----- 5.7 Export service + route -----
 - sleepEntriesToCsv(entries) — pure CSV builder
@@ -305,7 +348,10 @@ PUT  /api/sleep-entries/:date        upsert that day (JSON body)
 GET  /api/experiments                all experiments
 GET  /api/experiments/:id            one experiment
 POST /api/experiments                create { name, startDate, endDate }
-GET  /api/analytics/summary          { entryCount, averageSleepQuality, correlations }
+GET  /api/analytics/summary          correlations + avg quality (Pearson legacy)
+GET  /api/analytics/correlations     factor group cards (phone, sunrise, meal, weekday)
+GET  /api/analytics/insights         natural-language strings from latency gaps >15m
+GET  /api/stats/summary              dashboard window stats (7/30 day)
 GET  /api/export/sleep-entries.csv
 
 ================================================================================
@@ -339,7 +385,6 @@ Tests (Backend):
 - Experiment before/after analysis UI
 - Auth (if needed later)
 - Remove unused mongoose/jwt deps
-- Align frontend VITE_API_URL with backend PORT 4000
 
 ================================================================================
 10. AGENT WORKFLOW (MANDATORY FOR EVERY FUTURE PROMPT)
@@ -356,6 +401,78 @@ Tests (Backend):
 ================================================================================
 11. CHANGE LOG
 ================================================================================
+
+[2026-07-10] Step 40 — Natural language insights
+- generateInsights(): only gaps |latencyA−B| > 15; templated sentences.
+- Route: GET /api/analytics/insights
+- TESTED: synthetic phone 92 vs 5 → exact "…by 87 minutes."; skips ≤15;
+  npm test PASSED.
+
+[2026-07-10] Step 39 — Analytics correlations (factor groups)
+- computeCorrelations(): phone / sunrise / meal / weekday-weekend cards.
+- Route: GET /api/analytics/correlations
+- TESTED: synthetic phone A avgLatency=45 avgQuality=7; seeded phone
+  yes n=9 / no n=7 with real averages; npm test PASSED.
+
+[2026-07-10] Step 38 — Sleep latency calculation
+- latencyMinutes(e): differenceInMinutes(estimatedSleepTime, attemptSleepTime).
+- Requires both timestamps; no bedTime fallback.
+- TESTED: 04:00 → 05:27 = 87; null when missing; npm test PASSED.
+
+[2026-07-10] Step 37 — Consistency score (bedtime stability)
+- consistencyScore = 100 - min(100, circularStdev(bedtime minutes)).
+- Helper: minutesSinceMidnight, standardDeviation.
+- TESTED: identical beds → 100; wildly varying → <20; npm test PASSED.
+
+[2026-07-10] Step 36 — Sleep debt calculation (minutes)
+- sleepDebt(entries): rolling 7-day deficit vs TARGET_MINUTES=480.
+- Only max(0, …) deficits; missing duration counts as on-target.
+- computeSummary.sleepDebt now minutes (not hours).
+- TESTED: 7×8h → 0; 7×6h → 840; npm test ALL PASSED.
+
+[2026-07-10] Step 35 — Sleep duration calculation (minutes)
+- Added sleepDurationMinutes via date-fns differenceInMinutes.
+- sleepDurationHours now wraps minutes/60.
+- TESTED: same-day 04:00→12:00 = 480; overnight 23:30→07:00 = 450.
+- TESTED: npm test → ALL TESTS PASSED.
+
+[2026-07-10] Step 34 — Stats summary endpoint (7/30-day averages)
+- Added computeSummary() → todaySleep, sleepDebt, avg7day, avg30day,
+  consistencyScore, avgBedtime, avgWakeTime, avgLatency (all computed).
+- Route: GET /api/stats/summary
+- TESTED: npm test — avg7day matches spreadsheet of last 7 seeded
+  durations (last7 avg=7.01 == computeSummary.avg7day=7.01).
+- TESTED: npm run test:api → GET /api/stats/summary OK.
+- Sample: {"todaySleep":8,"sleepDebt":6.92,"avg7day":7.01,"avg30day":6.75,...}
+
+[2026-07-10] Step 33 — Nested child entries on SleepEntry PUT (reconfirmed)
+- Design: no separate child routes; one PUT carries nested mood/food/
+  exercise/environment/health (repository nested upsert).
+- Hardened API smoke asserts all 5 children on response.
+- Added tests/verify-nested-put.py — proves SQLite has 1 row in each of
+  SleepEntry + MoodEntry + FoodEntry + ExerciseEntry + EnvironmentEntry +
+  HealthEntry after a single PUT.
+- TESTED: npm test → ALL TESTS PASSED.
+- TESTED: npm run test:api → API SMOKE PASSED.
+- TESTED: python3 tests/verify-nested-put.py → OK all 5 child tables.
+
+[2026-07-10] Step 32 — CORS for local Vite dev
+- cors({ origin: 'http://localhost:5173' }) via CORS_ORIGIN env (default set).
+- Frontend api-client default API URL → http://localhost:4000/api.
+- Tests: Backend/tests/cors.test.ts (ACAO + PUT preflight).
+- TESTED: npm test → ALL TESTS PASSED.
+- TESTED: npm run test:api → API SMOKE PASSED (incl. CORS checks).
+- TESTED: curl Origin:5173 → Access-Control-Allow-Origin: http://localhost:5173
+
+[2026-07-10] Step 33 — Nested child entries on SleepEntry PUT
+- Confirmed design: mood/food/exercise/environment/health are nested on
+  PUT /api/sleep-entries/:date (no separate child endpoints).
+- Repository nested upsert already creates/updates all five relations.
+- Tests expanded: full nested repo upsert, nested Zod accept/reject,
+  API smoke nested PUT.
+- TESTED: npm test → ALL TESTS PASSED.
+- TESTED: npm run test:api → API SMOKE PASSED (incl. nested PUT).
+- TESTED: curl nested PUT → all 5 children present.
 
 [2026-07-10] Step 30 — Zod validation middleware
 - Added sleepEntrySchema + validateBody on PUT /api/sleep-entries/:date.
