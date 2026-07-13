@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-10 (after Step 42 — Vitest analytics unit tests)
+Last updated: 2026-07-13 (after Step 48 — Zustand UI store)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -89,21 +89,24 @@ SleepTracker/
         │   ├── main.tsx                 # QueryClientProvider + Devtools
         │   ├── App.tsx                  # Temp theme toggle + Button demo
         │   ├── index.css                # Tailwind + shadcn dark tokens (#0a0a0a)
-        │   ├── components/ui/           # shadcn: button, card, dialog, input, calendar
-        │   ├── features/                # Feature folders (stubs for now)
-        │   │   ├── sleep-entry/
-        │   │   ├── dashboard/
-        │   │   ├── analytics/
-        │   │   ├── experiments/
+        │   ├── components/
+        │   │   ├── layout/              # AppShell (Step 46) — Linear-style sidebar
+        │   │   └── ui/                  # shadcn: button, card, dialog, input, calendar, sheet
+        │   ├── features/                # Feature folders + Query hooks (Step 45)
+        │   │   ├── sleep-entry/         # SleepEntryCard, useSleepEntries
+        │   │   ├── dashboard/           # useStatsSummary
+        │   │   ├── analytics/           # useCorrelations, useInsights
+        │   │   ├── experiments/         # useExperiments
         │   │   └── reports/
         │   ├── lib/
-        │   │   ├── api-client.ts        # fetch wrapper → VITE_API_URL / :4000
+        │   │   ├── api-client.ts        # api.get / api.put → localhost:4000/api
         │   │   ├── queryClient.ts       # TanStack Query defaults
         │   │   └── utils.ts             # cn() helper
         │   ├── stores/
         │   │   └── ui-store.ts          # Zustand sidebar UI state
         │   └── types/
-        │       └── index.ts             # Frontend shared types
+        │       ├── index.ts             # Re-exports sleepEntry types
+        │       └── sleepEntry.ts        # Prisma-mirrored shapes (Step 44)
 
 ================================================================================
 3. HOW THE ARCHITECTURE WORKS (request flow)
@@ -333,14 +336,44 @@ Each has index.ts barrel — domain code will live here later.
 Shared UI in components/; shared types in types/; API in lib/api-client.ts
 
 ----- 6.4 Current UI -----
-App.tsx: SleepTracker title + shadcn Button + temporary theme toggle
-(for verifying dark/light). Not production UI yet.
+App.tsx: SleepTracker title + shadcn Buttons (theme toggle + Step 43 temp
+"Test API" button that console.logs api.get('/sleep-entries')).
 
------ 6.5 api-client -----
-fetch wrapper with JSON body, ApiError on non-OK.
-Base URL: import.meta.env.VITE_API_URL ?? http://localhost:5000/api
-NOTE: Backend currently runs on PORT 4000 — frontend default may need
-VITE_API_URL=http://localhost:4000/api when wiring real calls.
+----- 6.5 api-client (Step 43) -----
+lib/api-client.ts exports:
+  const BASE = 'http://localhost:4000/api'
+  api.get<T>(path) / api.put<T>(path, body)
+Simple fetch + JSON — no auth yet. Temp App button proves CORS + seeded data.
+
+----- 6.6 Frontend types mirrored from Prisma (Step 44) -----
+types/sleepEntry.ts hand-mirrors schema.prisma (ISO strings for DateTime).
+SleepEntry + Mood/Food/Exercise/Environment/Health + Experiment + SleepEntryWrite.
+SleepEntryCard destructures SleepEntry fields — tsc clean.
+Removed old Mongo-shaped SleepEntry from types/index.ts.
+
+----- 6.7 TanStack Query hooks per feature (Step 45) -----
+- sleep-entry/useSleepEntries.ts: useSleepEntries + useSaveSleepEntry
+  (onSuccess invalidates ['sleep-entries'] + ['stats-summary'])
+- dashboard/useStatsSummary.ts: useStatsSummary → GET /stats/summary
+- analytics/useAnalytics.ts: useCorrelations + useInsights
+- experiments/useExperiments.ts: useExperiments + useCreateExperiment
+- App demo: Save entry button — list/stats refresh with no manual refetch()
+
+----- 6.8 App shell / layout (Step 46) -----
+components/layout/AppShell.tsx — Linear-style left sidebar + main.
+Nav: Dashboard, Log Entry, Analytics, Experiments, Reports, Settings.
+Desktop (md≥768): persistent sidebar. Mobile: hamburger → shadcn Sheet.
+ui-store sidebarOpen drives Sheet; closes when viewport ≥768px.
+
+----- 6.9 React Router (Step 47) -----
+react-router + BrowserRouter in main.tsx.
+Routes: / (Dashboard), /log, /analytics, /experiments, /reports (+ /settings).
+AppShell is layout route with <Outlet />; sidebar uses <NavLink> (SPA, no reload).
+
+----- 6.10 Zustand UI store (Step 48) -----
+stores/ui-store.ts: selectedDate + setSelectedDate (yyyy-MM-dd), sidebarOpen,
+logExtrasOpen — ephemeral UI only. Server data stays in TanStack Query.
+/log: DateSelector + SleepLogForm share selectedDate (instant sync, no props).
 
 ================================================================================
 7. API REFERENCE (current)
@@ -410,6 +443,49 @@ Tests (Backend):
 ================================================================================
 11. CHANGE LOG
 ================================================================================
+
+[2026-07-13] Step 48 — Zustand UI store (ephemeral only)
+- selectedDate / setSelectedDate via date-fns format(yyyy-MM-dd).
+- Kept sidebarOpen; added logExtrasOpen modal flag. No server data in store.
+- /log: DateSelector + SleepLogForm share selectedDate (instant form update).
+- TESTED: npx tsc -b → zero errors.
+- TESTED: node scripts/check-ui-store.mjs → contract OK.
+
+[2026-07-13] Step 47 — React Router
+- npm install react-router; BrowserRouter in main.tsx.
+- Routes: / /log /analytics /experiments /reports (+ /settings).
+- AppShell uses NavLink + Outlet; sidebar updates URL without full reload.
+- TESTED: npx tsc -b → zero errors.
+- TESTED: node scripts/check-router.mjs → contract OK.
+
+[2026-07-13] Step 46 — App shell / layout (Linear-style)
+- Added components/layout/AppShell.tsx + shadcn Sheet.
+- Left nav: Dashboard, Log Entry, Analytics, Experiments, Reports, Settings.
+- Desktop sidebar md:flex; below 768px → hamburger + Sheet drawer.
+- App.tsx wrapped in AppShell with section placeholders.
+- TESTED: npx tsc -b → zero errors.
+- TESTED: node scripts/check-appshell.mjs → responsive contract OK.
+
+[2026-07-13] Step 45 — TanStack Query hooks per feature
+- useSleepEntries / useSaveSleepEntry; invalidate sleep-entries + stats-summary.
+- Also: useStatsSummary, useCorrelations, useInsights, useExperiments.
+- api.post added for experiment create.
+- App: Save entry (auto-refresh) mutates 2099-04-04; UI updates via invalidate.
+- TESTED: npx tsc -b → zero errors.
+- TESTED: PUT then GET list shows new notes; stats summary still serves.
+
+[2026-07-13] Step 44 — Mirror Prisma types on the frontend
+- Added types/sleepEntry.ts matching schema.prisma (DateTime → ISO string).
+- types/index.ts re-exports; dropped legacy Mongo User/SleepEntry shapes.
+- SleepEntryCard destructures SleepEntry; App uses api.get<SleepEntry[]>.
+- TESTED: npx tsc -b → zero type errors.
+- TESTED: live GET /sleep-entries keys match Mood/Food/Exercise/Env/Health types.
+
+[2026-07-13] Step 43 — Frontend API client wrapper
+- Rewrote lib/api-client.ts: BASE=http://localhost:4000/api; export api.get/put.
+- App.tsx temp button "Test API (log sleep-entries)" → console.log seeded array.
+- TESTED: api.get('/sleep-entries') → array length 16, CORS ACAO=5173.
+- TESTED: frontend tsc -b → clean.
 
 [2026-07-10] Step 42 — Backend Vitest unit tests (analytics.service)
 - Installed vitest (-D); vitest.config.ts (node env, src/**/*.test.ts).
