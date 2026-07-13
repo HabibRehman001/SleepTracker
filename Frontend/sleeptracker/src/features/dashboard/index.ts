@@ -1,2 +1,5 @@
-// Dashboard feature — summary widgets and overview views live here.
-export {}
+export {
+  statsSummaryQueryKey,
+  useStatsSummary,
+  type StatsSummary,
+} from './useStatsSummary'

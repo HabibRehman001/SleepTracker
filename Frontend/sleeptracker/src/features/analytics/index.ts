@@ -1,2 +1,8 @@
-// Analytics feature — charts and trend views live here.
-export {}
+export {
+  correlationsQueryKey,
+  insightsQueryKey,
+  useCorrelations,
+  useInsights,
+  type FactorCorrelation,
+  type FactorGroupStats,
+} from './useAnalytics'
