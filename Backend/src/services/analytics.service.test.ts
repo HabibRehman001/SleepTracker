@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   computeSummary,
   consistencyScore,
+  correlateBoolean,
   latencyMinutes,
   pearsonCorrelation,
   sleepDebt,
@@ -151,6 +152,55 @@ describe('analytics.service (vitest, no DB)', () => {
   describe('consistencyScore', () => {
     it('identical bedtimes → 100', () => {
       expect(consistencyScore(twoEntryFixture)).toBe(100)
+    })
+  })
+
+  describe('correlateBoolean', () => {
+    /**
+     * Hand-built 10-entry fixture (phone × latency) — exact averages:
+     *
+     * phone YES (5): latency 40,50,60,70,80 → mean 60, n=5
+     * phone NO  (3): latency 10,20,30       → mean 20, n=3
+     * skipped (2): factor null; factor true but outcome null
+     */
+    it('hand fixture: known exact group averages', () => {
+      type Row = { phone: boolean | null; latency: number | null }
+      const fixture: Row[] = [
+        { phone: true, latency: 40 },
+        { phone: true, latency: 50 },
+        { phone: true, latency: 60 },
+        { phone: true, latency: 70 },
+        { phone: true, latency: 80 },
+        { phone: false, latency: 10 },
+        { phone: false, latency: 20 },
+        { phone: false, latency: 30 },
+        { phone: null, latency: 99 },
+        { phone: true, latency: null },
+      ]
+
+      const result = correlateBoolean(
+        fixture,
+        (e) => e.phone,
+        (e) => e.latency
+      )
+
+      expect(result.groupA.n).toBe(5)
+      expect(result.groupA.avg).toBe(60)
+      expect(result.groupB.n).toBe(3)
+      expect(result.groupB.avg).toBe(20)
+    })
+
+    it('empty outcome sets → avg null, n 0', () => {
+      const result = correlateBoolean(
+        [
+          { phone: true as boolean | null, latency: null as number | null },
+          { phone: false, latency: null },
+        ],
+        (e) => e.phone,
+        (e) => e.latency
+      )
+      expect(result.groupA).toEqual({ avg: null, n: 0 })
+      expect(result.groupB).toEqual({ avg: null, n: 0 })
     })
   })
 

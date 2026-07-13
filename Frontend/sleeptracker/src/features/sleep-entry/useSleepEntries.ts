@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { statsSummaryQueryKey } from '@/features/dashboard/useStatsSummary'
+import { dashboardStatsQueryKey } from '@/features/dashboard/useDashboardStats'
 import { api } from '@/lib/api-client'
 import { queryClient } from '@/lib/queryClient'
 import type { SleepEntry, SleepEntryWrite } from '@/types/sleepEntry'
@@ -24,6 +24,6 @@ export const useSaveSleepEntry = () =>
     onSuccess: () => {
       // List + dashboard stats refresh — no manual refetch needed
       void queryClient.invalidateQueries({ queryKey: sleepEntriesQueryKey })
-      void queryClient.invalidateQueries({ queryKey: statsSummaryQueryKey })
+      void queryClient.invalidateQueries({ queryKey: dashboardStatsQueryKey })
     },
   })

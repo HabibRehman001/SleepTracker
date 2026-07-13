@@ -19,6 +19,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { useAppHotkeys } from '@/hooks/useAppHotkeys'
 import { cn } from '@/lib/utils'
 import { useUiStore } from '@/stores/ui-store'
 
@@ -85,6 +86,8 @@ export function AppShell() {
   const location = useLocation()
   const sidebarOpen = useUiStore((s) => s.sidebarOpen)
   const setSidebarOpen = useUiStore((s) => s.setSidebarOpen)
+
+  useAppHotkeys()
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 768px)')

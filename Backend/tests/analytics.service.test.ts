@@ -2,6 +2,7 @@ import {
   computeAnalyticsSummary,
   computeSummary,
   consistencyScore,
+  correlateBoolean,
   latencyMinutes,
   pearsonCorrelation,
   sleepDebt,
@@ -247,6 +248,44 @@ export async function runAnalyticsServiceTests(): Promise<boolean> {
         })
         const score = consistencyScore(entries)
         assert(score < 20, `expected low score, got ${score}`)
+      }
+    )
+  )
+
+  results.push(
+    await runTest(
+      'correlateBoolean hand fixture — exact known averages',
+      () => {
+        /**
+         * 10 rows (phone × latency):
+         * YES: 40,50,60,70,80 → avg 60, n=5
+         * NO:  10,20,30       → avg 20, n=3
+         * skip: factor null; factor true + outcome null
+         */
+        type Row = { phone: boolean | null; latency: number | null }
+        const fixture: Row[] = [
+          { phone: true, latency: 40 },
+          { phone: true, latency: 50 },
+          { phone: true, latency: 60 },
+          { phone: true, latency: 70 },
+          { phone: true, latency: 80 },
+          { phone: false, latency: 10 },
+          { phone: false, latency: 20 },
+          { phone: false, latency: 30 },
+          { phone: null, latency: 99 },
+          { phone: true, latency: null },
+        ]
+
+        const result = correlateBoolean(
+          fixture,
+          (e) => e.phone,
+          (e) => e.latency
+        )
+
+        assertEqual(result.groupA.n, 5, 'groupA n')
+        assertEqual(result.groupA.avg, 60, 'groupA avg (40+50+60+70+80)/5')
+        assertEqual(result.groupB.n, 3, 'groupB n')
+        assertEqual(result.groupB.avg, 20, 'groupB avg (10+20+30)/3')
       }
     )
   )

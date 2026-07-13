@@ -3,7 +3,6 @@ import type {
   AnalyticsSummary,
   CorrelationResult,
   FactorCorrelation,
-  FactorGroupStats,
   SleepEntryWithRelations,
   StatsSummary,
 } from '../types'
@@ -52,6 +51,52 @@ function average(values: number[]): number | null {
   }
 
   return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+/** Alias used by correlateBoolean (Step 69). */
+function mean(values: number[]): number | null {
+  return average(values)
+}
+
+function isNumber(value: number | null | undefined): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+export type BooleanGroupStats = {
+  avg: number | null
+  n: number
+}
+
+export type BooleanCorrelation = {
+  groupA: BooleanGroupStats
+  groupB: BooleanGroupStats
+}
+
+/**
+ * Generic boolean-factor vs numeric-outcome split (Step 69).
+ * One function for any factorFn / outcomeFn — no bespoke code per correlation.
+ *
+ * factorFn → true = groupA, false = groupB, null = skip entry.
+ * Outcomes that are null/NaN are dropped before averaging.
+ */
+export function correlateBoolean<T>(
+  entries: T[],
+  factorFn: (entry: T) => boolean | null,
+  outcomeFn: (entry: T) => number | null
+): BooleanCorrelation {
+  const groupA = entries
+    .filter((e) => factorFn(e) === true)
+    .map(outcomeFn)
+    .filter(isNumber)
+  const groupB = entries
+    .filter((e) => factorFn(e) === false)
+    .map(outcomeFn)
+    .filter(isNumber)
+
+  return {
+    groupA: { avg: mean(groupA), n: groupA.length },
+    groupB: { avg: mean(groupB), n: groupB.length },
+  }
 }
 
 function round(value: number, digits = 2): number {
@@ -421,47 +466,41 @@ const BINARY_FACTORS: BinaryFactorDef[] = [
   },
 ]
 
-function groupStats(
-  label: string,
-  group: SleepEntryWithRelations[]
-): FactorGroupStats {
-  const latencies = group
-    .map(latencyMinutes)
-    .filter((value): value is number => value !== null)
-  const qualities = group
-    .map((entry) => entry.sleepQuality)
-    .filter((value): value is number => value !== null)
-
-  return {
-    label,
-    avgLatency:
-      latencies.length === 0 ? null : round(average(latencies)!, 1),
-    avgQuality:
-      qualities.length === 0 ? null : round(average(qualities)!, 2),
-    n: group.length,
-  }
-}
-
 /**
  * Boolean / categorical factor cards: compare avg latency + quality between groups.
+ * Averages come from {@link correlateBoolean}; `n` is classified entry count.
  */
 export function computeCorrelations(
   entries: SleepEntryWithRelations[]
 ): FactorCorrelation[] {
   return BINARY_FACTORS.map(({ factor, labelA, labelB, classify }) => {
-    const groupA: SleepEntryWithRelations[] = []
-    const groupB: SleepEntryWithRelations[] = []
-
-    for (const entry of entries) {
-      const side = classify(entry)
-      if (side === true) groupA.push(entry)
-      else if (side === false) groupB.push(entry)
-    }
+    const latency = correlateBoolean(entries, classify, latencyMinutes)
+    const quality = correlateBoolean(
+      entries,
+      classify,
+      (entry) => entry.sleepQuality
+    )
+    const nA = entries.filter((e) => classify(e) === true).length
+    const nB = entries.filter((e) => classify(e) === false).length
 
     return {
       factor,
-      groupA: groupStats(labelA, groupA),
-      groupB: groupStats(labelB, groupB),
+      groupA: {
+        label: labelA,
+        avgLatency:
+          latency.groupA.avg == null ? null : round(latency.groupA.avg, 1),
+        avgQuality:
+          quality.groupA.avg == null ? null : round(quality.groupA.avg, 2),
+        n: nA,
+      },
+      groupB: {
+        label: labelB,
+        avgLatency:
+          latency.groupB.avg == null ? null : round(latency.groupB.avg, 1),
+        avgQuality:
+          quality.groupB.avg == null ? null : round(quality.groupB.avg, 2),
+        n: nB,
+      },
     }
   })
 }

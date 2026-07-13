@@ -13,9 +13,8 @@ type UiState = {
   setSidebarOpen: (open: boolean) => void
   toggleSidebar: () => void
 
-  /** Example open-modal flag (ephemeral). */
-  logExtrasOpen: boolean
-  setLogExtrasOpen: (open: boolean) => void
+  quickLogOpen: boolean
+  setQuickLogOpen: (open: boolean) => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -26,6 +25,6 @@ export const useUiStore = create<UiState>((set) => ({
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 
-  logExtrasOpen: false,
-  setLogExtrasOpen: (open) => set({ logExtrasOpen: open }),
+  quickLogOpen: false,
+  setQuickLogOpen: (open) => set({ quickLogOpen: open }),
 }))

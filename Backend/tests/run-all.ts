@@ -1,6 +1,7 @@
 import { prisma } from '../src/lib/prisma'
 import { runAnalyticsServiceTests } from './analytics.service.test'
 import { runCorrelationsTests } from './correlations.test'
+import { runDashboardE2ETests } from './dashboard-e2e.test'
 import { runExportStubTests } from './export.stub.test'
 import { runInsightsTests } from './insights.test'
 import { runSleepEntryRepositoryTests } from './sleepEntry.repository.test'
@@ -18,6 +19,7 @@ async function main() {
   const validationOk = await runSleepEntryValidationTests()
   const repoOk = await runSleepEntryRepositoryTests()
   const sleepServiceOk = await runSleepEntryServiceTests()
+  const dashboardOk = await runDashboardE2ETests()
 
   const ok =
     analyticsOk &&
@@ -26,8 +28,8 @@ async function main() {
     exportOk &&
     validationOk &&
     repoOk &&
-    sleepServiceOk
-
+    sleepServiceOk &&
+    dashboardOk
 
   console.log('\n==========================')
   console.log(ok ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED')

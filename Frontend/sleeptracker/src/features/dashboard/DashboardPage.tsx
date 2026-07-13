@@ -1,0 +1,84 @@
+import { Button } from '@/components/ui/button'
+import { useCorrelations } from '@/features/analytics'
+import { CorrelationCards } from '@/features/dashboard/CorrelationCards'
+import { DashboardCharts } from '@/features/dashboard/DashboardCharts'
+import { AverageSleepCards } from '@/features/dashboard/AverageSleepCards'
+import { ConsistencyScoreCard } from '@/features/dashboard/ConsistencyScoreCard'
+import { ScheduleTimingCards } from '@/features/dashboard/ScheduleTimingCards'
+import { SleepDebtCard } from '@/features/dashboard/SleepDebtCard'
+import { StatCardsGrid } from '@/features/dashboard/StatCardsGrid'
+import { TodayCard } from '@/features/dashboard/TodayCard'
+import { useDashboardStats } from '@/features/dashboard/useDashboardStats'
+import { QuickLogActions, useSleepEntries } from '@/features/sleep-entry'
+
+/**
+ * Grafana-dense dashboard (Step 59):
+ * KPI strip → charts → correlation cards.
+ */
+export function DashboardPage() {
+  const { data: entries = [], isLoading, dataUpdatedAt } = useSleepEntries()
+  const { data: stats, isLoading: statsLoading } = useDashboardStats()
+  const { data: correlations, isLoading: corrLoading } = useCorrelations()
+
+  return (
+    <div
+      className="mx-auto flex w-full max-w-6xl flex-col gap-5"
+      data-testid="dashboard-page"
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground text-sm">
+            {isLoading ? 'loading…' : `${entries.length} nights`} · updated{' '}
+            {dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : '—'}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <QuickLogActions />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => document.documentElement.classList.toggle('dark')}
+          >
+            Toggle theme
+          </Button>
+        </div>
+      </div>
+
+      <div
+        className="grid gap-2 sm:grid-cols-2"
+        data-testid="highlight-cards"
+      >
+        <TodayCard />
+        <SleepDebtCard />
+      </div>
+
+      <AverageSleepCards />
+
+      <ConsistencyScoreCard />
+
+      <ScheduleTimingCards />
+
+      <section className="space-y-2">
+        <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+          Overview
+        </h2>
+        <StatCardsGrid stats={stats} isLoading={statsLoading} />
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+          Trends
+        </h2>
+        <DashboardCharts entries={entries} />
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+          Correlations
+        </h2>
+        <CorrelationCards correlations={correlations} isLoading={corrLoading} />
+      </section>
+    </div>
+  )
+}

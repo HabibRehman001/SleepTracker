@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-13 (after Step 48 — Zustand UI store)
+Last updated: 2026-07-14 (after Step 69 — correlateBoolean)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -39,7 +39,7 @@ SleepTracker/
 │   ├── prisma.config.ts                 # Prisma CLI config + seed command
 │   ├── prisma/
 │   │   ├── schema.prisma                # All DB models
-│   │   ├── seed.ts                      # ~14 days realistic fake data
+│   │   ├── seed.ts                      # ~30 days realistic fake data
 │   │   └── migrations/
 │   │       └── 20260709233638_init/     # Initial SQLite migration
 │   ├── generated/prisma/                # Generated Prisma Client (gitignored)
@@ -102,6 +102,8 @@ SleepTracker/
         │   │   ├── api-client.ts        # api.get / api.put → localhost:4000/api
         │   │   ├── queryClient.ts       # TanStack Query defaults
         │   │   └── utils.ts             # cn() helper
+        │   ├── hooks/
+        │   │   └── useAppHotkeys.ts     # g>d / g>l / n (Step 49)
         │   ├── stores/
         │   │   └── ui-store.ts          # Zustand sidebar UI state
         │   └── types/
@@ -145,7 +147,7 @@ Models (7 tables):
 
 Child tables hold sleepEntryId @unique + onDelete: Cascade.
 
-Seed: prisma/seed.ts creates 14 SleepEntry days with all children linked,
+Seed: prisma/seed.ts creates 30 SleepEntry days with all children linked,
 plus 1 Experiment ("No phone after work").
 
 DATABASE_URL="file:./dev.db"
@@ -179,7 +181,7 @@ File: src/repositories/sleepEntry.repository.ts
 Functions:
 - findAll()
   → prisma.sleepEntry.findMany({ include: all children, orderBy: date asc })
-  → returns seeded 14 rows with linked mood/food/exercise/environment/health
+  → returns seeded 30 rows with linked mood/food/exercise/environment/health
 
 - findByDate(date)
   → findUnique({ where: { date }, include: ... })
@@ -375,6 +377,96 @@ stores/ui-store.ts: selectedDate + setSelectedDate (yyyy-MM-dd), sidebarOpen,
 logExtrasOpen — ephemeral UI only. Server data stays in TanStack Query.
 /log: DateSelector + SleepLogForm share selectedDate (instant sync, no props).
 
+----- 6.11 Keyboard shortcuts (Step 49) -----
+react-hotkeys-hook + hooks/useAppHotkeys.ts (mounted in AppShell).
+g>d → /  (Dashboard), g>l → /log, n → today + /log.
+Disabled in form fields by default; sequence window 1000ms.
+
+----- 6.12 SleepEntry form (Step 51) -----
+/log "Log Today": RHF + zodResolver(sleepEntryFormSchema).
+Time inputs (type=time) + Slider 1–10 for quality/energy.
+sleepQuality:0 → inline "Must be at least 1"; mutate only onValid (no network).
+(Step 50 skipped — marked unnecessary.)
+
+----- 6.13 Wire save + toast (Step 52) -----
+handleSubmit → useSaveSleepEntry.mutate({ date, ...times/ISO, scores }).
+onSuccess: toast.success("Saved") (sonner Toaster in main.tsx).
+Invalidation refreshes Dashboard TodayCard (quality / hours / notes).
+
+----- 6.14 Mood sub-form accordion (Step 53) -----
+MoodSection Accordion on same /log page (not a route).
+mood.{mood,stress,anxiety,motivation} on parent FormProvider;
+shouldUnregister:false + AccordionContent forceMount — collapse keeps values.
+
+----- 6.15 Food sub-form Switch (Step 54) -----
+FoodSection: "Ate before sleep?" Switch reveals meal time/type/caffeine.
+Toggle off hides fields; parent RHF keeps last values (shouldUnregister:false).
+
+----- 6.16 Exercise sub-form Switch (Step 55) -----
+ExerciseSection: "Exercised today?" Switch reveals type/duration/workout time.
+Same conditional pattern as Food — values preserved when toggled off.
+
+----- 6.17 Environment sub-form (Step 56) -----
+EnvironmentSection: toggle grid (fan/AC/curtains/eye mask/white noise/
+sunlight/birds/Fajr) + roomTemp input + screenBrightness slider 0–100.
+
+----- 6.18 Health sub-form (Step 57) -----
+HealthSection: weight (kg), restingHeartRate, bloodPressure free text.
+BP loose regex ^\d{2,3}\s*/\s*\d{2,3}$ (e.g. 120/80); empty allowed.
+
+----- 6.19 Quick Log mode (Step 58) -----
+QuickLogDialog: 3 fields (bedTime, wakeTime, sleepQuality) → partial SleepEntry.
+Quick Log button + Full Log link on Dashboard and /log (#full-log).
+Child relations sent as null; TodayCard/stats already null-safe (— / skip).
+
+----- 6.20 Dashboard layout (Step 59) -----
+Grafana-dense / : StatCardsGrid (8 KPIs) → DashboardCharts (duration line +
+quality bars, 14d) → CorrelationCards (factor A/B latency & quality).
+max-w-6xl; mono tabular numbers; dark card panels.
+
+----- 6.21 useDashboardStats (Step 60) -----
+useQuery({ queryKey: ['stats-summary'], queryFn: () => api.get('/stats/summary') })
+useStatsSummary kept as deprecated alias; same key so save invalidation still works.
+
+----- 6.22 StatCard (Step 61) -----
+Pure <StatCard label value trend? /> — no fetch/format logic inside.
+StatCardsGrid formats time/score strings and passes them in.
+
+----- 6.23 Today's Sleep card (Step 62) -----
+TodaysSleepCard: duration + quality + colored badge.
+todaySleepBadgeTone: green (≥7h & quality ≥7), red (both below), yellow (mixed).
+TodayCard container still reads sleep-entries + stats; mounted on Dashboard.
+
+----- 6.24 Sleep Debt card (Step 63) -----
+SleepDebtCardView: always Xh Ym + small ↑/↓/→ vs prior 7-day window.
+Container uses stats.sleepDebt; trend from entries (−14..−7 vs −7).
+
+----- 6.25 7-day / 30-day average cards (Step 64) -----
+AverageSleepCards: mean duration rounded to 2 decimals (matches computeSummary).
+formatAverageHours → "7.36h"; spreadsheetAverage verifies last-7 mean.
+
+----- 6.26 Consistency Score card (Step 65) -----
+ConsistencyScoreCard: SVG circular progress ring 0–100 (not a plain number tile).
+Band colors: high ≥80, moderate ≥50, low below; label from bedtime stability.
+
+----- 6.27 Avg Bedtime / Wake / Latency cards (Step 66) -----
+ScheduleTimingCards: bed/wake as 12h clocks ("4:12 AM"); latency as duration.
+formatClockTime converts API HH:mm or minute-of-day — never raw minutes.
+
+----- 6.28 CorrelationCard (Step 67) -----
+<CorrelationCard factor groupA groupB /> — YES→Xm | NO→Ym side-by-side.
+Higher latency highlighted red/amber; n=0 → "not enough data" (no NaN).
+
+----- 6.29 Dashboard e2e real data (Step 68) -----
+Seed 30 nights (phone yes/no + weekday/weekend + sunlight mix).
+Dashboard cards read live sleep-entries / stats/summary / correlations.
+dashboard-e2e.test.ts asserts every KPI + all correlation sides are finite
+non-placeholder values.
+
+----- 6.30 correlateBoolean (Step 69) -----
+correlateBoolean(entries, factorFn, outcomeFn) → { groupA, groupB } avg/n.
+Generic boolean×numeric split; computeCorrelations uses it for latency + quality.
+
 ================================================================================
 7. API REFERENCE (current)
 ================================================================================
@@ -403,7 +495,7 @@ Backend:
   cd Backend
   npm install
   npx prisma migrate dev        # if DB missing
-  npx prisma db seed            # 14 days of data
+  npx prisma db seed            # 30 days of data
   npm run dev                   # http://localhost:4000
 
 Frontend:
@@ -443,6 +535,126 @@ Tests (Backend):
 ================================================================================
 11. CHANGE LOG
 ================================================================================
+
+[2026-07-14] Step 69 — Design generic correlateBoolean
+- correlateBoolean(entries, factorFn, outcomeFn) → groupA/B { avg, n }.
+- computeCorrelations refactored to use it for latency + quality averages.
+- TESTED: 10-entry phone×latency fixture → A avg=60 n=5, B avg=20 n=3;
+  npm test + vitest unit.
+
+[2026-07-14] Step 68 — Wire dashboard to real data end-to-end
+- Seed expanded to 30 nights; phone/sunlight/meal + weekday/weekend mixes.
+- Deterministic latencies (phone nights higher) for plausible A/B cards.
+- dashboard-e2e.test.ts + check-dashboard-e2e.mjs: all KPIs non-placeholder.
+- TESTED: npm test (30 nights, phone 18/12, all correlations n>0); live API OK.
+
+[2026-07-14] Step 67 — CorrelationCard component
+- CorrelationCard: factor + groupA/B side-by-side ("YES → 87 min avg latency").
+- Bigger latency highlighted red/amber; n=0 → "not enough data" (never NaN).
+- CorrelationCards grid refactored to render CorrelationCard.
+- TESTED: phone 87/21 highlight; empty group emptyHtml; tsc clean.
+
+[2026-07-14] Step 66 — Avg Bedtime / Wake / Latency cards
+- ScheduleTimingCards: bed/wake → "4:12 AM"; latency → "45m" / "1h 05m".
+- formatClockTime used by cards + StatCardsGrid (no raw HH:mm or minute totals).
+- TESTED: 252 / "04:12" → "4:12 AM"; tsc clean.
+
+[2026-07-14] Step 65 — Consistency Score card
+- ConsistencyRing: SVG circular progress 0–100; band stroke by score.
+- ConsistencyScoreCard on Dashboard; KPI strip stays plain number.
+- TESTED: score 72 → ring data-score=72, moderate band; tsc clean.
+
+[2026-07-14] Step 64 — 7-day / 30-day average cards
+- AverageSleepCards: 7d + 30d mean duration, formatAverageHours (2 decimals).
+- Mirrors computeSummary; StatCardsGrid uses same formatter.
+- TESTED: spreadsheet of [7,7.5,8,6.5,8,7,7.5] → 7.36h exact card match; tsc clean.
+
+[2026-07-14] Step 63 — Sleep Debt card
+- SleepDebtCard: displays debt as Xh Ym with ↑/↓/→ vs prior 7 days.
+- formatSleepDebt / sleepDebtTrendDirection helpers; mounted beside TodayCard.
+- TESTED: 220m → "3h 40m" + data-trend="up"; tsc clean.
+
+[2026-07-14] Step 62 — Today's Sleep card
+- TodaysSleepCard: last night duration + quality + Good/Fair/Poor badge.
+- Badge: green ≥7h & quality ≥7; red both below; yellow between.
+- TodayCard feeds stats/entry; rendered on DashboardPage.
+- TESTED: mock 5h / quality 3 → data-tone="red"; tsc clean.
+
+[2026-07-14] Step 61 — StatCard (pure presentation)
+- StatCard: label + value + optional trend; no business logic / fetching.
+- StatCardsGrid refactored to render StatCard for all 8 KPIs.
+- TESTED: time "3h 40m" + score "72" via renderToStaticMarkup; tsc clean.
+
+[2026-07-14] Step 60 — useDashboardStats hook
+- useDashboardStats: queryKey ['stats-summary'] → GET /stats/summary.
+- DashboardPage + TodayCard switched; useStatsSummary = alias.
+- Save mutation invalidates dashboardStatsQueryKey (same cache).
+- TESTED: npx tsc -b → zero errors; check-dashboard-stats.mjs OK.
+
+[2026-07-14] Step 59 — Dashboard page layout (Grafana-dense)
+- StatCardsGrid: Today’s Sleep, Debt, Avg7/30, Consistency, Bed/Wake, Latency.
+- DashboardCharts: recharts Line (hours) + Bar (quality) last 14 nights.
+- CorrelationCards: phone/sunrise/meal/weekday group A vs B.
+- TESTED: npx tsc -b → zero errors; check-dashboard-layout.mjs OK.
+
+[2026-07-14] Step 58 — Quick Log mode (3-field modal)
+- QuickLogDialog + QuickLogActions: bed/wake/quality → partial PUT.
+- Children mood/food/exercise/environment/health explicitly null.
+- Full Log link → /log#full-log; ui-store.quickLogOpen.
+- TodayCard shows — for missing hours; stats filter null durations.
+- TESTED: npx tsc -b → zero errors; check-quick-log.mjs OK.
+
+[2026-07-14] Step 57 — Health sub-form (weight / RHR / BP)
+- HealthSection Accordion: weight kg, restingHeartRate, bloodPressure.
+- BP loose regex (120/80 with optional spaces); empty string OK.
+- Included in schema + PUT payload; 0 weight/RHR sent as null.
+- TESTED: npx tsc -b → zero errors; check-health-section.mjs OK.
+
+[2026-07-14] Step 56 — Environment sub-form (toggles + temp + brightness)
+- EnvironmentSection Accordion: 8 Switch toggles in a grid.
+- roomTemp number input (°C); screenBrightness Slider 0–100.
+- On parent FormProvider; included in schema + PUT payload.
+- TESTED: npx tsc -b → zero errors; check-environment-section.mjs OK.
+
+[2026-07-14] Step 55 — Exercise sub-form (Switch + conditional fields)
+- ExerciseSection: Switch "Exercised today?" reveals type/duration/workout time.
+- Toggle off hides fields; parent form keeps values; PUT includes exercise.
+- TESTED: npx tsc -b → zero errors; check-exercise-section.mjs OK.
+
+[2026-07-14] Step 54 — Food sub-form (Switch + conditional fields)
+- FoodSection Accordion: Switch "Ate before sleep?" reveals meal/caffeine fields.
+- Detail fields conditionally rendered; values stay on parent form (not cleared).
+- Schema + PUT payload include food; shadcn Switch added.
+- TESTED: npx tsc -b → zero errors; check-food-section.mjs (values preserved).
+
+[2026-07-14] Step 53 — Mood sub-form Accordion (parent RHF state)
+- MoodSection: Accordion with mood/stress/anxiety/motivation sliders.
+- Values via useFormContext on parent FormProvider (shouldUnregister:false).
+- AccordionContent forceMount + hidden when closed — no value reset on collapse.
+- Schema + PUT payload include mood; shadcn accordion added.
+- TESTED: npx tsc -b → zero errors; check-mood-section.mjs OK.
+
+[2026-07-14] Step 52 — Wire form to useSaveSleepEntry + Saved toast
+- handleSubmit(onValid) → saveMutation.mutate({ date, ...payload }).
+- toast.success("Saved") on success; sonner Toaster (no next-themes).
+- Dashboard TodayCard reads sleep-entries + stats; updates via invalidate.
+- Overnight wake/outOfBed bumped +1 day when earlier than sleep start.
+- TESTED: npx tsc -b → zero errors; check-save-toast.mjs OK.
+
+[2026-07-14] Step 51 — SleepEntry form (RHF + Zod); Step 50 skipped
+- sleepEntryForm.schema.ts: times HH:MM + sleepQuality/energy 1–10.
+- SleepEntryForm: shadcn Input type=time + Slider; Save via useSaveSleepEntry.
+- sleepQuality:0 fails Zod ("Must be at least 1") before mutate/network.
+- shadcn slider + label added. /log page retitled Log Today.
+- TESTED: npx tsc -b → zero errors.
+- TESTED: schema.safeParse(quality:0) fails; node scripts/check-sleep-form.mjs OK.
+
+[2026-07-14] Step 49 — Keyboard shortcuts (react-hotkeys-hook)
+- Installed react-hotkeys-hook; hooks/useAppHotkeys.ts mounted in AppShell.
+- g>d → Dashboard (/), g>l → Log Entry (/log), n → today + navigate /log.
+- Sequence window 1000ms; skipped while typing in form fields.
+- TESTED: npx tsc -b → zero errors.
+- TESTED: node scripts/check-hotkeys.mjs → contract OK.
 
 [2026-07-13] Step 48 — Zustand UI store (ephemeral only)
 - selectedDate / setSelectedDate via date-fns format(yyyy-MM-dd).
