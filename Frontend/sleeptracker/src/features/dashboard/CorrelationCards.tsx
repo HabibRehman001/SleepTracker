@@ -4,43 +4,18 @@ import {
 } from '@/features/dashboard/CorrelationCard'
 import type { FactorCorrelation } from '@/features/analytics/useAnalytics'
 
-function factorTitle(factor: string): string {
-  switch (factor) {
-    case 'phoneUsedBeforeSleep':
-      return 'Phone before sleep'
-    case 'sunlightSeenBeforeSleep':
-      return 'Sunrise / sunlight'
-    case 'mealBeforeSleep':
-      return 'Meal before sleep'
-    case 'weekdayWeekend':
-      return 'Weekday vs weekend'
-    default:
-      return factor
-  }
-}
-
-/** Compact YES / NO (or weekend/weekday) tags for the side-by-side layout. */
-export function correlationSideLabel(factor: string, isGroupA: boolean): string {
-  if (factor === 'weekdayWeekend') {
-    return isGroupA ? 'WEEKEND' : 'WEEKDAY'
-  }
-  return isGroupA ? 'YES' : 'NO'
-}
-
-function toCardGroup(
-  factor: string,
-  group: FactorCorrelation['groupA'],
-  isGroupA: boolean
-): CorrelationGroup {
+function toCardGroup(group: FactorCorrelation['groupA']): CorrelationGroup {
   return {
-    label: correlationSideLabel(factor, isGroupA),
-    avgLatency: group.avgLatency,
-    avgQuality: group.avgQuality,
+    label: group.label || 'YES',
+    avg: group.avg,
     n: group.n,
   }
 }
 
-/** Grid of {@link CorrelationCard} for all factor comparisons. */
+/**
+ * Grid of {@link CorrelationCard} — one card per factor × outcome entry.
+ * Titles come from API `label` ("Phone before sleep vs latency").
+ */
 export function CorrelationCards({
   correlations,
   isLoading,
@@ -51,7 +26,7 @@ export function CorrelationCards({
   if (isLoading) {
     return (
       <div className="grid gap-2 sm:grid-cols-2" data-testid="correlation-cards">
-        {Array.from({ length: 4 }).map((_, i) => (
+        {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
             className="h-28 animate-pulse rounded-md border border-border/80 bg-card/40"
@@ -71,18 +46,29 @@ export function CorrelationCards({
 
   return (
     <div
-      className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4"
+      className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
       data-testid="correlation-cards"
     >
       {correlations.map((c) => (
         <CorrelationCard
-          key={c.factor}
-          factor={factorTitle(c.factor)}
-          groupA={toCardGroup(c.factor, c.groupA, true)}
-          groupB={toCardGroup(c.factor, c.groupB, false)}
-          data-testid={`correlation-${c.factor}`}
+          key={`${c.factor}-${c.outcome}`}
+          factor={c.label || `${c.factor} vs ${c.outcome}`}
+          outcome={c.outcome}
+          groupA={toCardGroup(c.groupA)}
+          groupB={toCardGroup({ ...c.groupB, label: c.groupB.label || 'NO' })}
+          data-testid={`correlation-${c.factor}-${c.outcome}`}
         />
       ))}
     </div>
   )
+}
+
+/** @deprecated Side labels now come from the API groups. */
+export function correlationSideLabel(
+  _factor: string,
+  isGroupA: boolean,
+  groupLabel?: string
+): string {
+  if (groupLabel) return groupLabel
+  return isGroupA ? 'YES' : 'NO'
 }

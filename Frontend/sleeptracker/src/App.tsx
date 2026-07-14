@@ -1,7 +1,12 @@
 import { Navigate, Route, Routes } from 'react-router'
 
 import { AppShell } from '@/components/layout'
+import { AnalyticsPage } from '@/features/analytics'
 import { DashboardPage } from '@/features/dashboard'
+import {
+  ExperimentDetailPage,
+  ExperimentsPage,
+} from '@/features/experiments'
 import { LogEntryPage } from '@/features/sleep-entry'
 
 function PlaceholderPage({ label }: { label: string }) {
@@ -19,11 +24,9 @@ export default function App() {
       <Route element={<AppShell />}>
         <Route index element={<DashboardPage />} />
         <Route path="log" element={<LogEntryPage />} />
-        <Route path="analytics" element={<PlaceholderPage label="Analytics" />} />
-        <Route
-          path="experiments"
-          element={<PlaceholderPage label="Experiments" />}
-        />
+        <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="experiments" element={<ExperimentsPage />} />
+        <Route path="experiments/:id" element={<ExperimentDetailPage />} />
         <Route path="reports" element={<PlaceholderPage label="Reports" />} />
         <Route path="settings" element={<PlaceholderPage label="Settings" />} />
         <Route path="*" element={<Navigate to="/" replace />} />

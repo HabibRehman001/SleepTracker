@@ -5,6 +5,8 @@ import {
   correlateBoolean,
   latencyMinutes,
   pearsonCorrelation,
+  cumulativeSleepDebt,
+  cumulativeSleepDebtSeries,
   sleepDebt,
   sleepDurationHours,
   sleepDurationMinutes,
@@ -171,6 +173,40 @@ export async function runAnalyticsServiceTests(): Promise<boolean> {
           })
         )
         assertEqual(sleepDebt(entries), 840, '14 hours of debt in minutes')
+      }
+    )
+  )
+
+  results.push(
+    await runTest(
+      'cumulative sleep debt: 5×6h + 1×10h → reduces but does not zero',
+      () => {
+        // 5 × 120 = 600; 10h night recovers 120 → 480
+        const entries = [
+          ...Array.from({ length: 5 }, (_, index) =>
+            makeEntry({
+              id: `cum-six-${index}`,
+              date: new Date(2026, 0, 1 + index),
+              sleepQuality: 5,
+              estimatedSleepTime: new Date(2026, 0, 1 + index, 0, 0),
+              wakeTime: new Date(2026, 0, 1 + index, 6, 0),
+            })
+          ),
+          makeEntry({
+            id: 'cum-ten',
+            date: new Date(2026, 0, 6),
+            sleepQuality: 8,
+            estimatedSleepTime: new Date(2026, 0, 6, 0, 0),
+            wakeTime: new Date(2026, 0, 6, 10, 0),
+          }),
+        ]
+        const series = cumulativeSleepDebtSeries(entries)
+        assertEqual(series.length, 6, 'six nights')
+        assertEqual(series[4].debtMinutes, 600, 'after five 6h nights')
+        assertEqual(series[5].debtMinutes, 480, 'after recovery night')
+        assertEqual(series[5].nightDelta, -120, 'surplus delta')
+        assertEqual(cumulativeSleepDebt(entries), 480, 'final cumulative')
+        assert(cumulativeSleepDebt(entries) > 0, 'single surplus does not wipe')
       }
     )
   )

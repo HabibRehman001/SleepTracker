@@ -17,8 +17,12 @@ export const experimentRepository = {
   async create(data: {
     name: string
     startDate: Date
-    endDate: Date
+    endDate: Date | null
   }): Promise<ExperimentRecord> {
     return prisma.experiment.create({ data })
+  },
+
+  async delete(id: string): Promise<void> {
+    await prisma.experiment.delete({ where: { id } })
   },
 }

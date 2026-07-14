@@ -51,29 +51,75 @@ export async function runApiSmokeTests(): Promise<boolean> {
       assert(Array.isArray(body), 'array body')
       const rows = body as Array<{
         factor: string
-        groupA: { n: number; avgLatency: number | null; avgQuality: number | null }
-        groupB: { n: number; avgLatency: number | null; avgQuality: number | null }
+        outcome: string
+        label: string
+        groupA: { n: number; avg: number | null }
+        groupB: { n: number; avg: number | null }
       }>
-      const phone = rows.find((row) => row.factor === 'phoneUsedBeforeSleep')
-      assert(phone, 'phoneUsedBeforeSleep entry')
-      assert(phone.groupA.n > 0 && phone.groupB.n > 0, 'mixed phone days')
-      assert(
-        phone.groupA.avgQuality !== null || phone.groupB.avgQuality !== null,
-        'computed averages'
+      const phoneLatency = rows.find(
+        (row) =>
+          row.factor === 'phoneUsedBeforeSleep' && row.outcome === 'latency'
       )
+      const phoneQuality = rows.find(
+        (row) =>
+          row.factor === 'phoneUsedBeforeSleep' && row.outcome === 'quality'
+      )
+      assert(phoneLatency, 'phone vs latency entry')
+      assert(phoneQuality, 'phone vs quality entry')
+      assert(
+        phoneLatency.groupA.n > 0 && phoneLatency.groupB.n > 0,
+        'mixed phone days'
+      )
+      assert(phoneLatency.groupA.avg !== null, 'latency avg')
+      assert(phoneQuality.groupA.avg !== null, 'quality avg')
     })
   )
 
   results.push(
-    await runTest('GET /api/analytics/insights returns string array', async () => {
-      const { status, body } = await getJson('/api/analytics/insights')
-      assertEqual(status, 200, 'status')
-      assert(Array.isArray(body), 'array body')
-      assert(
-        (body as unknown[]).every((item) => typeof item === 'string'),
-        'all strings'
-      )
-    })
+    await runTest(
+      'GET /api/analytics/insights returns { insights: string[] }',
+      async () => {
+        const { status, body } = await getJson('/api/analytics/insights')
+        assertEqual(status, 200, 'status')
+        assert(body && typeof body === 'object', 'object body')
+        const payload = body as { insights?: unknown }
+        assert(Array.isArray(payload.insights), 'insights array')
+        assert(
+          (payload.insights as unknown[]).every(
+            (item) => typeof item === 'string'
+          ),
+          'all strings'
+        )
+      }
+    )
+  )
+
+  results.push(
+    await runTest(
+      'GET /api/analytics/scatter returns points + regression',
+      async () => {
+        const { status, body } = await getJson('/api/analytics/scatter')
+        assertEqual(status, 200, 'status')
+        const payload = body as { scatters?: unknown }
+        assert(Array.isArray(payload.scatters), 'scatters array')
+        const scatters = payload.scatters as Array<{
+          key: string
+          points: unknown[]
+          regression: { slope: number; intercept: number; n: number } | null
+        }>
+        assert(
+          scatters.some((s) => s.key === 'phoneMinutesVsLatency'),
+          'phone scatter'
+        )
+        assert(
+          scatters.some((s) => s.key === 'caffeineVsQuality'),
+          'caffeine scatter'
+        )
+        for (const s of scatters) {
+          assert(Array.isArray(s.points), `${s.key} points`)
+        }
+      }
+    )
   )
 
   results.push(

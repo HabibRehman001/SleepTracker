@@ -3,15 +3,12 @@ import * as React from 'react'
 import type { FactorGroupStats } from '@/features/analytics/useAnalytics'
 import { cn } from '@/lib/utils'
 
-export type CorrelationGroup = Pick<
-  FactorGroupStats,
-  'label' | 'avgLatency' | 'n'
-> & {
-  avgQuality?: number | null
-}
+export type CorrelationGroup = Pick<FactorGroupStats, 'label' | 'avg' | 'n'>
 
 export type CorrelationCardProps = {
   factor: string
+  /** Outcome key for display units — latency | quality | duration */
+  outcome?: string
   groupA: CorrelationGroup
   groupB: CorrelationGroup
   className?: string
@@ -21,47 +18,69 @@ export type CorrelationCardProps = {
 const NOT_ENOUGH = 'not enough data'
 
 /**
- * Latency line for one side. Never shows NaN — empty groups → "not enough data".
+ * Format one group's outcome mean. Never shows NaN — empty → "not enough data".
  */
-export function formatCorrelationLatency(group: CorrelationGroup): string {
-  if (group.n <= 0 || group.avgLatency == null || !Number.isFinite(group.avgLatency)) {
+export function formatCorrelationAvg(
+  group: CorrelationGroup,
+  outcome = 'latency'
+): string {
+  if (group.n <= 0 || group.avg == null || !Number.isFinite(group.avg)) {
     return NOT_ENOUGH
   }
-  const mins = Math.round(group.avgLatency)
-  return `${mins} min avg latency`
+  if (outcome === 'quality') {
+    return `${group.avg} avg quality`
+  }
+  if (outcome === 'duration') {
+    return `${Math.round(group.avg)} min avg duration`
+  }
+  return `${Math.round(group.avg)} min avg latency`
 }
 
+/** @deprecated Prefer formatCorrelationAvg */
+export const formatCorrelationLatency = (
+  group: CorrelationGroup & { avgLatency?: number | null }
+) =>
+  formatCorrelationAvg(
+    {
+      label: group.label,
+      n: group.n,
+      avg: group.avg ?? group.avgLatency ?? null,
+    },
+    'latency'
+  )
+
 /**
- * Which side has the higher (worse) latency for highlight — null if incomparable.
+ * Which side has the higher value for highlight — null if incomparable.
  */
-export function higherLatencySide(
+export function higherValueSide(
   groupA: CorrelationGroup,
   groupB: CorrelationGroup
 ): 'A' | 'B' | null {
   const aOk =
-    groupA.n > 0 &&
-    groupA.avgLatency != null &&
-    Number.isFinite(groupA.avgLatency)
+    groupA.n > 0 && groupA.avg != null && Number.isFinite(groupA.avg)
   const bOk =
-    groupB.n > 0 &&
-    groupB.avgLatency != null &&
-    Number.isFinite(groupB.avgLatency)
+    groupB.n > 0 && groupB.avg != null && Number.isFinite(groupB.avg)
   if (!aOk || !bOk) return null
-  if (groupA.avgLatency! === groupB.avgLatency!) return null
-  return groupA.avgLatency! > groupB.avgLatency! ? 'A' : 'B'
+  if (groupA.avg === groupB.avg) return null
+  return groupA.avg! > groupB.avg! ? 'A' : 'B'
 }
+
+/** @deprecated Prefer higherValueSide */
+export const higherLatencySide = higherValueSide
 
 function GroupColumn({
   side,
   group,
+  outcome,
   highlight,
 }: {
   side: 'A' | 'B'
   group: CorrelationGroup
+  outcome: string
   highlight: boolean
 }) {
-  const latencyText = formatCorrelationLatency(group)
-  const isEmpty = latencyText === NOT_ENOUGH
+  const avgText = formatCorrelationAvg(group, outcome)
+  const isEmpty = avgText === NOT_ENOUGH
 
   return (
     <div
@@ -89,25 +108,25 @@ function GroupColumn({
       >
         <span className="font-medium tracking-wide uppercase">{group.label}</span>
         {' → '}
-        <span className="font-mono tabular-nums">{latencyText}</span>
+        <span className="font-mono tabular-nums">{avgText}</span>
       </p>
     </div>
   )
 }
 
 /**
- * Side-by-side factor comparison (Step 67).
- * Example: Phone before sleep — YES → 87 min avg latency | NO → 21 min avg latency
- * Larger latency highlighted in red/amber.
+ * Side-by-side factor × outcome comparison.
+ * Example: Phone before sleep vs latency — YES → 87 min | NO → 21 min
  */
 export function CorrelationCard({
   factor,
+  outcome = 'latency',
   groupA,
   groupB,
   className,
   'data-testid': testId = 'correlation-card',
 }: CorrelationCardProps) {
-  const worse = higherLatencySide(groupA, groupB)
+  const worse = higherValueSide(groupA, groupB)
 
   return (
     <React.Fragment>
@@ -125,8 +144,18 @@ export function CorrelationCard({
           {factor}
         </h3>
         <div className="grid grid-cols-2 gap-2">
-          <GroupColumn side="A" group={groupA} highlight={worse === 'A'} />
-          <GroupColumn side="B" group={groupB} highlight={worse === 'B'} />
+          <GroupColumn
+            side="A"
+            group={groupA}
+            outcome={outcome}
+            highlight={worse === 'A'}
+          />
+          <GroupColumn
+            side="B"
+            group={groupB}
+            outcome={outcome}
+            highlight={worse === 'B'}
+          />
         </div>
       </article>
     </React.Fragment>

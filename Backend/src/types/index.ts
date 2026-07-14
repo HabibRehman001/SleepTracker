@@ -104,18 +104,46 @@ export type CorrelationResult = {
   sampleSize: number
 }
 
-/** Group comparison for boolean/categorical factors (Step 39). */
+/** Group comparison for a single factor × outcome (Step 71). */
 export type FactorGroupStats = {
   label: string
-  avgLatency: number | null
-  avgQuality: number | null
+  /** Mean of the selected outcome for this group. */
+  avg: number | null
   n: number
 }
 
 export type FactorCorrelation = {
   factor: string
+  /** latency | quality | duration */
+  outcome: string
+  /** Display title, e.g. "Phone before sleep vs latency". */
+  label: string
   groupA: FactorGroupStats
   groupB: FactorGroupStats
+}
+
+/** One night on a scatter plot (Step 86). */
+export type ScatterPoint = {
+  x: number
+  y: number
+  date: string
+}
+
+/** Ordinary least-squares fit y = slope·x + intercept. */
+export type LinearRegression = {
+  slope: number
+  intercept: number
+  n: number
+}
+
+/** Raw points + trend for one factor×outcome scatter (Step 86). */
+export type ScatterCorrelation = {
+  key: string
+  label: string
+  xLabel: string
+  yLabel: string
+  points: ScatterPoint[]
+  regression: LinearRegression | null
 }
 
 export type AnalyticsSummary = {
@@ -140,6 +168,7 @@ export type ExperimentRecord = {
   id: string
   name: string
   startDate: Date
-  endDate: Date
+  /** Null when the experiment is ongoing / open-ended. */
+  endDate: Date | null
   createdAt: Date
 }

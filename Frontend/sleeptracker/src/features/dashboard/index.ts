@@ -56,4 +56,15 @@ export { StatCardsGrid } from './StatCardsGrid'
 export { DashboardCharts } from './DashboardCharts'
 export { CorrelationCard, type CorrelationCardProps, type CorrelationGroup } from './CorrelationCard'
 export { CorrelationCards, correlationSideLabel } from './CorrelationCards'
+export { CorrelationScatterCharts } from './CorrelationScatterCharts'
+export {
+  InsightsPanel,
+  InsightsPanelView,
+  type InsightsPanelProps,
+} from './InsightsPanel'
+export {
+  PatternsDetectedCard,
+  PatternsDetectedCardView,
+  type PatternsDetectedCardProps,
+} from './PatternsDetectedCard'
 export { DashboardPage } from './DashboardPage'

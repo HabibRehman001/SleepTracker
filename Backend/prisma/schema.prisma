@@ -93,9 +93,10 @@ model HealthEntry {
 }
 
 model Experiment {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   startDate DateTime
-  endDate   DateTime
-  createdAt DateTime @default(now())
+  /** Null = open-ended / ongoing experiment (Step 97). */
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
 }

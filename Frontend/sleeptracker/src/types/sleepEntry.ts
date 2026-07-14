@@ -103,6 +103,7 @@ export type Experiment = {
   id: string
   name: string
   startDate: string
-  endDate: string
+  /** Null / omitted when ongoing (open-ended). */
+  endDate: string | null
   createdAt: string
 }

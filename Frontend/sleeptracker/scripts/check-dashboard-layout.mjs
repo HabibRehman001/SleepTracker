@@ -42,9 +42,8 @@ for (const key of [
   assert.match(stats, new RegExp(key))
 }
 
-assert.match(charts, /LineChart/)
-assert.match(charts, /BarChart/)
-assert.match(charts, /recharts/)
+assert.match(charts, /LineChartCard/)
+assert.doesNotMatch(charts, /from 'recharts'/)
 assert.match(corr, /groupA/)
 assert.match(corr, /groupB/)
 

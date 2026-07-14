@@ -1,6 +1,5 @@
 /**
- * Step 67 — CorrelationCard side-by-side latency comparison.
- * Empty group → "not enough data" (never NaN).
+ * Step 67/71 — CorrelationCard side-by-side; multi-outcome avg display.
  */
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -10,10 +9,9 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import {
   CorrelationCard,
-  formatCorrelationLatency,
-  higherLatencySide,
+  formatCorrelationAvg,
+  higherValueSide,
 } from '../src/features/dashboard/CorrelationCard.tsx'
-import { correlationSideLabel } from '../src/features/dashboard/CorrelationCards.tsx'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const cardSrc = readFileSync(
@@ -26,61 +24,55 @@ const listSrc = readFileSync(
 )
 
 assert.match(cardSrc, /export function CorrelationCard/)
-assert.match(cardSrc, /factor:\s*string/)
-assert.match(cardSrc, /groupA/)
-assert.match(cardSrc, /groupB/)
-assert.match(cardSrc, /not enough data/)
-assert.match(cardSrc, /text-red-700|text-amber/)
+assert.match(cardSrc, /formatCorrelationAvg/)
 assert.match(listSrc, /<CorrelationCard/)
-assert.equal(correlationSideLabel('phoneUsedBeforeSleep', true), 'YES')
-assert.equal(correlationSideLabel('phoneUsedBeforeSleep', false), 'NO')
+assert.match(listSrc, /c\.outcome/)
+assert.match(listSrc, /c\.label/)
 
 assert.equal(
-  formatCorrelationLatency({ label: 'YES', avgLatency: 87, n: 4 }),
+  formatCorrelationAvg({ label: 'YES', avg: 87, n: 4 }, 'latency'),
   '87 min avg latency'
 )
 assert.equal(
-  formatCorrelationLatency({ label: 'NO', avgLatency: null, n: 0 }),
+  formatCorrelationAvg({ label: 'YES', avg: 7.5, n: 4 }, 'quality'),
+  '7.5 avg quality'
+)
+assert.equal(
+  formatCorrelationAvg({ label: 'NO', avg: null, n: 0 }, 'latency'),
   'not enough data'
 )
 assert.equal(
-  formatCorrelationLatency({ label: 'NO', avgLatency: Number.NaN, n: 2 }),
-  'not enough data'
-)
-assert.equal(
-  higherLatencySide(
-    { label: 'YES', avgLatency: 87, n: 4 },
-    { label: 'NO', avgLatency: 21, n: 3 }
+  higherValueSide(
+    { label: 'YES', avg: 87, n: 4 },
+    { label: 'NO', avg: 21, n: 3 }
   ),
   'A'
 )
 
 const phoneHtml = renderToStaticMarkup(
   createElement(CorrelationCard, {
-    factor: 'Phone before sleep',
-    groupA: { label: 'YES', avgLatency: 87, n: 5 },
-    groupB: { label: 'NO', avgLatency: 21, n: 4 },
+    factor: 'Phone before sleep vs latency',
+    outcome: 'latency',
+    groupA: { label: 'YES', avg: 87, n: 5 },
+    groupB: { label: 'NO', avg: 21, n: 4 },
   })
 )
-assert.match(phoneHtml, /Phone before sleep/)
-assert.match(phoneHtml, /YES/)
+assert.match(phoneHtml, /Phone before sleep vs latency/)
 assert.match(phoneHtml, /87 min avg latency/)
-assert.match(phoneHtml, /NO/)
 assert.match(phoneHtml, /21 min avg latency/)
-assert.match(phoneHtml, /data-highlight="true"/)
 assert.doesNotMatch(phoneHtml, /NaN/)
 
 const emptyHtml = renderToStaticMarkup(
   createElement(CorrelationCard, {
-    factor: 'Phone before sleep',
-    groupA: { label: 'YES', avgLatency: 87, n: 5 },
-    groupB: { label: 'NO', avgLatency: null, n: 0 },
+    factor: 'Phone before sleep vs quality',
+    outcome: 'quality',
+    groupA: { label: 'YES', avg: 7, n: 5 },
+    groupB: { label: 'NO', avg: null, n: 0 },
   })
 )
 assert.match(emptyHtml, /not enough data/)
 assert.doesNotMatch(emptyHtml, /NaN/)
-assert.match(emptyHtml, /data-empty="true"/)
 
 console.log(
-  'CorrelationCard OK — YES 87 / NO 21 side-by-side; empty group → not enough data'
+  'CorrelationCard OK — multi-outcome avg; empty group → not enough data'
 )

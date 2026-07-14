@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-14 (after Step 69 — correlateBoolean)
+Last updated: 2026-07-15 (after Step 101 — Experiments list cards)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -247,13 +247,14 @@ Repository upsert does nested writes:
 - update: mood/food/... { upsert: { create, update } }
 Zod validates nested objects; invalid mood.stress → 400 before DB.
 
------ 5.5 Experiment repository / service / routes -----
-Repository: findAll, findById, create
-Service: validates name + dates, endDate >= startDate
+----- 5.5 Experiment repository / service / routes (Step 97) -----
+Repository: findAll, findById, create, delete
+Service: name + startDate required; endDate optional (null = ongoing)
 Routes (/api/experiments):
 - GET /
 - GET /:id
-- POST /  { name, startDate, endDate }
+- POST /  { name, startDate, endDate? }
+- DELETE /:id → 204
 
 ----- 5.6 Analytics service (core logic) -----
 File: src/services/analytics.service.ts
@@ -294,7 +295,7 @@ I) generateInsights(correlations)  (Step 40)
 Routes:
 - GET /api/analytics/summary → Pearson correlations (legacy)
 - GET /api/analytics/correlations → factor group cards (Step 39)
-- GET /api/analytics/insights → string[] insights (Step 40)
+- GET /api/analytics/insights → { insights: string[] } (Steps 40, 78)
 - GET /api/stats/summary → computeSummary(findAll())  (Step 34)
 
 ----- 5.7 Export service + route -----
@@ -467,6 +468,152 @@ non-placeholder values.
 correlateBoolean(entries, factorFn, outcomeFn) → { groupA, groupB } avg/n.
 Generic boolean×numeric split; computeCorrelations uses it for latency + quality.
 
+----- 6.31 Declarative FACTORS registry (Step 70) -----
+FACTORS = [{ key, label, get }] — phone, sunrise, meal, isWeekend.
+computeCorrelations(entries, factors=FACTORS); add one line → new card.
+API FactorCorrelation.label drives frontend titles (no switch).
+
+----- 6.32 Multi-outcome correlations (Step 71) -----
+OUTCOMES = latency / quality / duration; loop FACTORS × OUTCOMES.
+Each entry labeled e.g. "Phone before sleep vs latency"; group.avg is the mean.
+Insights still use latency outcomes only (|gap| > 15m).
+
+----- 6.33 Low-confidence filter (Step 72) -----
+MIN_CORRELATION_GROUP_N = 3; if groupA.n < 3 || groupB.n < 3 → omit card.
+E.g. only 2 phone-use days → phone × outcome cards suppressed.
+
+----- 6.34 Weekend bedtime shift (Step 73) -----
+weekendBedtimeShiftHours: (weekendAvgBed − weekdayAvgBed) / 60.
+Insight: "Weekends shift your bedtime by 4.8 hours." via buildInsights.
+
+----- 6.35 Optimal room temperature (Step 74) -----
+Bucket roomTemp to nearest 2°C; pick bucket with highest avg sleepQuality.
+Insight: "Your optimal room temperature range is 24–26°C."
+
+----- 6.36 Sunrise-before-bed impact (Step 75) -----
+sunriseBeforeBedImpact: avg quality with vs without sunlightSeenBeforeSleep.
+Insight: "Average quality with sunrise before sleep: 5.2; without: 8.1."
+
+----- 6.37 Insight sentence templates (Step 76) -----
+insightTemplates: effectMinutes > 20 (duration), latencyDiff > 15 (latency).
+generateInsightSentences(candidates); generateInsights maps FactorCorrelation → templates.
+
+----- 6.38 Rank insights by effect size (Step 77) -----
+rankInsightCandidates / generateInsightSentences sort by |effect| descending.
+MAX_RANKED_INSIGHTS = 5 — top meaningful insights, not FACTORS registration order.
+
+----- 6.39 Insights HTTP endpoint (Step 78) -----
+GET /api/analytics/insights → { insights: string[] } (ranked per Step 77).
+getInsights() on analytics service owns the payload shape.
+
+----- 6.40 Insights panel (Step 79) -----
+Dashboard InsightsPanel — "This month's patterns" GitHub-style callout.
+Bulleted list from useInsights; empty → "Not enough data yet…".
+With 30-day seed: ≥2–3 real sentences (check-insights-panel.mjs).
+
+----- 6.41 Analytics service vitest suite (Step 80) -----
+src/services/analytics.service.test.ts — fixture-based coverage for every
+exported function (duration, debt, correlations, insights, createAnalyticsService).
+Command: npx vitest run analytics.service
+
+----- 6.42 Recharts wrappers (Step 81) -----
+components/charts/{LineChartCard,ScatterChartCard,HeatmapCalendar} + chartTheme.
+DashboardCharts uses LineChartCard only (no raw recharts in the feature file).
+
+----- 6.43 Sleep Timeline chart (Step 82) -----
+SleepTimelineChart — horizontal bed→wake bars; x-axis = sleep day from noon.
+4 AM–12 PM → single continuous bar [960, 1440] (not split at midnight).
+
+----- 6.44 Bedtime & Wake Consistency charts (Step 83) -----
+Daily bedtime/wake lines + shaded ±1 circular-SD band (ReferenceArea).
+Drift vs the mean band is visible immediately.
+
+----- 6.45 Sleep Duration chart (Step 84) -----
+30-day BarChart; green ≥8h, yellow 6–8h, red <6h vs 8h target line.
+
+----- 6.46 Quality contribution heatmap (Step 85) -----
+GitHub-style grid (weeks × weekdays); cell intensity = sleep quality.
+Full year ≈ 52–54 columns; overflow-x scroll (no page layout overflow).
+
+----- 6.47 Correlation scatter plots (Step 86) -----
+linearRegression OLS; GET /api/analytics/scatter → { scatters: points + regression }.
+UI: phone-minutes×latency + caffeine×quality with trend line overlay.
+
+----- 6.48 Weekday vs Weekend chart (Step 87) -----
+Grouped bars: avg bedtime / duration / quality — weekday vs weekend side by side.
+Bars normalized within each metric; tooltips show real HH:mm / hours / quality.
+
+----- 6.49 Sleep Quality Over Time (Step 88) -----
+Faint daily quality points + smoothed 7-day rolling average line on top.
+
+----- 6.50 Responsive charts (Step 89) -----
+ResponsiveChartFrame + useCompactChart (≤640px): min-w-0 shells, tighter ticks,
+angled labels; heatmap overflow-x scroll; main overflow-x-hidden.
+Contract covers 1440→375 layouts (no chart page overflow).
+
+----- 6.51 Analytics page (Step 90) -----
+/analytics → AnalyticsPage: DateRangeFilter (7d/30d/90d/all) at top, then all
+charts + InsightsPanel + correlation scatters/cards.
+Range filters sleep-entries client-side for charts; correlations/insights/scatter
+hooks pass ?range= and include range in query keys so a switch re-fetches all
+API panels consistently with the same window.
+
+----- 6.52 Weekend jetlag (Step 91) -----
+detectWeekendJetlag / weekendJetlagHours: Sunday-night bed + Mon-morning wake
+vs weekday averages — Math.abs(mondayBedtime - weekdayAvgBedtime) / 60 (and wake).
+Severity: minor ≥1h, moderate ≥2h. formatWeekendJetlag → buildInsights.
+3 AM Sat/Sun vs 4 AM weekday → "Minor weekend jetlag"; aligned nights → no flag.
+
+----- 6.53 Circadian drift (Step 92) -----
+linearRegressionSlope([dayIndex, minutesSinceMidnight(bedTime)]) over last 14 nights.
+Positive slope (≥1 min/day) → "drifting later"; negative → earlier.
+formatCircadianDrift → buildInsights. Fixture +10 min/day × 14 → flagged later.
+
+----- 6.54 Cumulative sleep debt (Step 93) -----
+cumulativeSleepDebtSeries / cumulativeSleepDebt: running total (all nights).
+Night delta = TARGET − duration; debt = max(0, debt + delta) — surplus recovers
+without a full wipe. 5×6h + 1×10h → 600 then 480 (not zero). sleepDebt stays 7-day.
+
+----- 6.55 Rolling average utility (Step 94) -----
+rollingAverage(values, windowSize): trailing mean; edges use full-window warm-up
+→ NaN for indices 0..windowSize-2. Example: ([1,2,3,4,5], 3) → [NaN,NaN,2,3,4].
+Backend utils/ + Frontend lib/; quality chart maps NaN→null via rollingAverageForChart.
+
+----- 6.56 Longest streak & personal records (Step 95) -----
+longestStreak(entries, predicate) — generic consecutive-true counter.
+longestStreakByDate sorts first. Example: quality≥7 for 5 nights amid 4s → 5.
+computePersonalRecords: best/worst night for quality, duration, latency
+(latency: lower is better).
+
+----- 6.57 Patterns Detected card (Step 96) -----
+GET /api/analytics/patterns → { warnings, highlights }.
+Amber banners only for moderate jetlag (≥2h) and strong drift (|slope|≥10).
+Jetlag/drift use circular clock mean + unwrapped OLS (midnight-safe).
+Dashboard PatternsDetectedCard below Insights; seed → 0 warning banners.
+
+----- 6.58 Experiment CRUD (Step 97) -----
+POST /experiments { name, startDate, endDate? }; GET /; DELETE /:id.
+endDate nullable (open-ended ongoing). ExperimentsPage: name + date pickers + list/delete.
+
+----- 6.59 Experiment before/after (Step 98) -----
+experimentOutcomeDiff: before = last 14 nights date < start; during = start..end;
+diff = mean(during) − mean(before). Synthetic quality 5→8 → +3.
+GET /experiments/:id/comparison → metrics (quality, duration, latency).
+
+----- 6.60 Welch t-test confidence (Step 99) -----
+welchTTest(before, during): two-tailed p-value (hand-rolled Welch + Student-t CDF).
+Attached to each comparison metric (pValue, significant at α=0.05).
+Means 5 vs 8 low variance → p<0.05; near-identical → p>0.3.
+
+----- 6.61 Experiment detail page (Step 100) -----
+/experiments/:id — header (name + date range), Before/During/Δ Diff stat cards
+(quality primary + other metrics), LineChartCard with vertical start marker.
+List rows link to detail; useExperiment + useExperimentComparison.
+
+----- 6.62 Experiments list cards (Step 101) -----
+/experiments — card grid: name, date range, "Quality improved by X%" (or declined /
+not enough data). Cards link to detail; create form retained above the grid.
+
 ================================================================================
 7. API REFERENCE (current)
 ================================================================================
@@ -479,10 +626,18 @@ GET  /api/sleep-entries/:date        one entry by date (YYYY-MM-DD)
 PUT  /api/sleep-entries/:date        upsert that day (JSON body)
 GET  /api/experiments                all experiments
 GET  /api/experiments/:id            one experiment
-POST /api/experiments                create { name, startDate, endDate }
+GET  /api/experiments/:id/comparison before/after outcome means + diffs
+POST /api/experiments                create { name, startDate, endDate? }
+DELETE /api/experiments/:id          delete experiment (204)
 GET  /api/analytics/summary          correlations + avg quality (Pearson legacy)
-GET  /api/analytics/correlations     factor group cards (phone, sunrise, meal, weekday)
-GET  /api/analytics/insights         natural-language strings from latency gaps >15m
+GET  /api/analytics/correlations     FACTORS × OUTCOMES cards (latency/quality/duration)
+                                     optional ?range=7d|30d|90d|all (default all)
+GET  /api/analytics/insights         { insights: string[] } ranked by effect size
+                                     optional ?range=7d|30d|90d|all (default all)
+GET  /api/analytics/scatter          { scatters: points + OLS regression }
+                                     optional ?range=7d|30d|90d|all (default all)
+GET  /api/analytics/patterns         { warnings, highlights } smart detections
+                                     optional ?range=7d|30d|90d|all (default all)
 GET  /api/stats/summary              dashboard window stats (7/30 day)
 GET  /api/export/sleep-entries.csv   working CSV download
 GET  /api/export/json                stub JSON (full in steps 104–106)
@@ -535,6 +690,167 @@ Tests (Backend):
 ================================================================================
 11. CHANGE LOG
 ================================================================================
+
+[2026-07-15] Step 101 — Experiments list card grid
+- ExperimentListCard + qualityChangeSummary (% vs before); grid on ExperimentsPage.
+- Click-through to detail; delete stays on card.
+- TESTED: check-experiments-list.mjs; tsc -b.
+
+[2026-07-15] Step 100 — Experiment detail page
+- ExperimentDetailPage: header, Before/During/Δ cards, quality chart + start marker.
+- LineChartCard verticalMarkerX; list links to /experiments/:id.
+- TESTED: check-experiment-detail.mjs; tsc -b.
+
+[2026-07-15] Step 99 — Welch t-test for experiment diffs
+- Hand-rolled welchTTest + studentTPvalue; pValue/significant on comparison metrics.
+- Different (5 vs 8) → p<0.05; near-identical → p>0.3.
+- TESTED: npm test (welch-ttest + experiment.comparison).
+
+[2026-07-15] Step 98 — Experiment before/after comparison
+- experimentOutcomeDiff / splitExperimentWindows; last-14 before vs during means.
+- Fixture quality 5 → 8 → diff +3; GET /experiments/:id/comparison.
+- TESTED: npm test (experiment.comparison).
+
+[2026-07-15] Step 97 — Add Experiment CRUD
+- Optional endDate (Prisma nullable); POST/GET/DELETE experiments; ExperimentsPage form.
+- Open-ended when end blank; list + delete; api.delete supports 204.
+- TESTED: npm test (experiment.crud); check-experiments-crud.mjs; tsc -b.
+
+[2026-07-15] Step 96 — Surface Patterns Detected on dashboard
+- GET /analytics/patterns; computeSmartPatterns; PatternsDetectedCard (amber banners).
+- Circular jetlag + unwrapped drift; seed → 0 false-positive warning banners.
+- TESTED: npm test (smart-patterns); check-patterns-detected.mjs; vitest; tsc -b.
+
+[2026-07-15] Step 95 — Detect longest streak & personal records
+- longestStreak / longestStreakByDate; sleepQuality helper; computePersonalRecords.
+- Fixture: 5× quality-8 amid quality-4 → streak 5; best/worst quality + latency dirs.
+- TESTED: vitest analytics.service; npm test (streaks.test).
+
+[2026-07-15] Step 94 — Compute rolling averages utility
+- rollingAverage(values, windowSize) with full-window NaN edges (documented).
+- ([1,2,3,4,5], 3) → [NaN, NaN, 2, 3, 4]; quality chart uses rollingAverageForChart.
+- TESTED: vitest analytics.service; npm test; check-quality-over-time.mjs.
+
+[2026-07-15] Step 93 — Track cumulative sleep debt
+- cumulativeSleepDebtSeries / cumulativeSleepDebt: running debt with recovery nights.
+- debt = max(0, debt + (TARGET − duration)); single surplus does not wipe history.
+- Fixture: 5×6h → 600m, then 10h → 480m. Rolling sleepDebt unchanged.
+- TESTED: npx vitest run analytics.service; npm test.
+
+[2026-07-15] Step 92 — Detect circadian drift
+- linearRegressionSlope + circadianDriftSlope over last 14 bedtimes.
+- Positive slope → "drifting later"; wired into buildInsights.
+- Fixture: +10 min/day × 14 → slope≈10, flagged drifting later; flat → no flag.
+- TESTED: npx vitest run analytics.service; npm test.
+
+[2026-07-15] Step 91 — Detect weekend jetlag
+- weekendJetlagHours / detectWeekendJetlag / formatWeekendJetlag (bed + wake).
+- Minor ≥1h, moderate ≥2h; wired into buildInsights.
+- Fixture: 3 AM Sat/Sun vs 4 AM weekday → minor; aligned nights → no false positive.
+- TESTED: npx vitest run analytics.service; npm test.
+
+[2026-07-15] Step 90 — Wire the Analytics page
+- AnalyticsPage + DateRangeFilter (7d/30d/90d/all); charts + insights + correlations.
+- Backend filterEntriesByAnalyticsRange; ?range= on correlations/insights/scatter.
+- Hooks range-key queries so filter switch re-fetches API panels with charts.
+- TESTED: vitest analytics.service (49); npm test; check-analytics-page.mjs; tsc -b.
+
+[2026-07-15] Step 89 — Make all charts responsive
+- ResponsiveChartFrame, useCompactChart, ChartCardShell min-w-0/overflow-hidden.
+- Compact margins/ticks; grids [&>*]:min-w-0; AppShell overflow-x-hidden.
+- TESTED: npx tsx scripts/check-charts-responsive.mjs; npx tsc -b.
+
+[2026-07-15] Step 88 — Sleep Quality Over Time chart
+- SleepQualityOverTimeChart: faint daily quality + 7-day rolling average line.
+- TESTED: npx tsx scripts/check-quality-over-time.mjs; npx tsc -b.
+
+[2026-07-15] Step 87 — Weekday vs Weekend comparison chart
+- WeekdayWeekendChart: grouped bars for bedtime / duration / quality.
+- TESTED: npx tsx scripts/check-weekday-weekend.mjs; npx tsc -b.
+
+[2026-07-15] Step 86 — Correlation scatter plots with OLS trend
+- linearRegression + buildCorrelationScatters; GET /api/analytics/scatter.
+- ScatterChartCard trend line; CorrelationScatterCharts on dashboard.
+- TESTED: npx vitest run analytics.service; check-scatter-correlations.mjs; tsc -b.
+
+[2026-07-15] Step 85 — GitHub-style contribution heatmap (sleep quality)
+- buildContributionGrid + HeatmapCalendar year view; QualityContributionHeatmap on dashboard.
+- TESTED: 365 seeded days → 53 week columns; overflow-x-auto (check-quality-heatmap.mjs).
+
+[2026-07-15] Step 84 — Build the Sleep Duration chart
+- SleepDurationChart: 30d bars color-coded vs 8h (green/yellow/red) + target line.
+- TESTED: npx tsx scripts/check-sleep-duration.mjs; npx tsc -b.
+
+[2026-07-15] Step 83 — Bedtime & Wake Consistency charts
+- scheduleConsistency.ts: circular mean/SD; ±1 SD band + daily line.
+- BedtimeWakeConsistencyCharts on Dashboard Trends (ReferenceArea band).
+- TESTED: npx tsx scripts/check-schedule-consistency.mjs; npx tsc -b.
+
+[2026-07-15] Step 82 — Build the Sleep Timeline chart
+- sleepTimeline.ts: noon sleep-day axis; pad+sleep stacked horizontal bars.
+- SleepTimelineChart on Dashboard Trends; 4 AM–12 PM → [960, 1440] continuous.
+- TESTED: npx tsx scripts/check-sleep-timeline.mjs; npx tsc -b.
+
+[2026-07-15] Step 81 — Set up Recharts wrapper components
+- Added LineChartCard, ScatterChartCard, HeatmapCalendar + shared chartTheme.
+- DashboardCharts → LineChartCard (duration + quality); no recharts in feature file.
+- TESTED: npx tsx scripts/check-chart-wrappers.mjs; npx tsc -b.
+
+[2026-07-15] Step 80 — Unit test the whole analytics service
+- Expanded analytics.service.test.ts: every exported fn has fixture-based cases.
+- Covers pearson, duration/debt/latency, summary, FACTORS×OUTCOMES, weekend/room/sunrise,
+  insight templates/rank, buildInsights, createAnalyticsService (fake reader).
+- TESTED: npx vitest run analytics.service → 42 passed.
+
+[2026-07-15] Step 79 — Insights panel on dashboard
+- InsightsPanel: "This month's patterns" callout (left accent, bullets).
+- Wired via useInsights on DashboardPage; check-insights-panel.mjs + live ≥2 sentences.
+- TESTED: npx tsx scripts/check-insights-panel.mjs; npx tsc -b.
+
+[2026-07-15] Step 78 — Build /analytics/insights endpoint
+- GET /api/analytics/insights returns { insights: string[] } via getInsights().
+- Frontend useInsights unwraps body.insights; smoke + unit cover payload shape.
+- TESTED: npm test → ALL TESTS PASSED.
+
+[2026-07-15] Step 77 — Rank insights by effect size
+- Rank by |effectMinutes| / |latencyDiff|; return top MAX_RANKED_INSIGHTS (5).
+- TESTED: candidate 80m above 12m; sentence "…latency by 80…" before smaller gaps.
+
+[2026-07-15] Step 76 — Insight sentence generator
+- insightTemplates.ts: duration (>20m) + latency (>15m) guarded templates.
+- generateInsightSentences + toInsightCandidate; generateInsights uses library.
+- TESTED: exact "You slept 45 minutes longer…" and phone latency +87 sentence.
+
+[2026-07-15] Step 75 — Sunrise-before-bed impact
+- sunriseBeforeBedImpact via correlateBoolean (sunlight × quality).
+- format: "Average quality with sunrise before sleep: 5.2; without: 8.1."
+- TESTED: synthetic 5.2 vs 8.1; buildInsights includes sentence.
+
+[2026-07-15] Step 74 — Optimal room temperature range
+- roomTempBucket / optimalRoomTempRange: nearest-2°C buckets × avg quality.
+- formatOptimalRoomTemp → "Your optimal room temperature range is 24–26°C."
+- TESTED: 24°C nights quality 8+ beat 20/22/28°C at quality 5.
+
+[2026-07-15] Step 73 — Weekend bedtime shift
+- weekendBedtimeShiftHours + formatWeekendBedtimeShift (spec sentence).
+- buildInsights adds shift to correlation insights; /insights uses getInsights.
+- TESTED: weekday 18:00 / weekend 22:48 → "Weekends shift your bedtime by 4.8 hours."
+
+[2026-07-15] Step 72 — Filter out low-confidence correlations
+- MIN_CORRELATION_GROUP_N=3; suppress if either group n < 3.
+- TESTED: 2 phone-use days → 0 phone cards; n≥3 fixture keeps phone vs latency/quality.
+
+[2026-07-15] Step 71 — Correlations against multiple outcomes
+- OUTCOMES: latencyMinutes, sleepQuality, sleepDurationMinutes.
+- computeCorrelations = FACTORS.flatMap × OUTCOMES → 12 cards (4×3).
+- FactorCorrelation { factor, outcome, label, groupA/B.avg }; UI updated.
+- TESTED: phone vs latency + phone vs quality present; npm test.
+
+[2026-07-15] Step 70 — Declarative FACTORS registry
+- FACTORS: phone / sunrise / meal / isWeekend with key+label+get.
+- computeCorrelations maps FACTORS only; optional override for tests.
+- FactorCorrelation.label → CorrelationCards (no frontend factor switch).
+- TESTED: 5th "exercised" factor → 5th card; npm test; check-factors-registry.
 
 [2026-07-14] Step 69 — Design generic correlateBoolean
 - correlateBoolean(entries, factorFn, outcomeFn) → groupA/B { avg, n }.

@@ -3,6 +3,9 @@
  * is a plausible non-placeholder value (same sources the frontend cards use).
  */
 import {
+  FACTORS,
+  MIN_CORRELATION_GROUP_N,
+  OUTCOMES,
   computeCorrelations,
   computeSummary,
 } from '../src/services/analytics.service'
@@ -103,27 +106,40 @@ export async function runDashboardE2ETests(): Promise<boolean> {
         )
 
         const correlations = computeCorrelations(sorted)
-        assert(correlations.length >= 4, 'expected 4 factor correlation cards')
+        assert(
+          correlations.length > 0 &&
+            correlations.length <= FACTORS.length * OUTCOMES.length,
+          `expected 1..${FACTORS.length * OUTCOMES.length} confident cards, got ${correlations.length}`
+        )
 
         for (const c of correlations) {
           for (const side of ['groupA', 'groupB'] as const) {
             const g = c[side]
-            assert(g.n > 0, `${c.factor}.${side} n=0 — would show "not enough data"`)
-            assertRealNumber(g.avgLatency, `${c.factor}.${side}.avgLatency`, {
-              min: 0,
-              max: 300,
-            })
-            assertRealNumber(g.avgQuality, `${c.factor}.${side}.avgQuality`, {
-              min: 1,
-              max: 10,
+            assert(
+              g.n >= MIN_CORRELATION_GROUP_N,
+              `${c.factor}/${c.outcome}.${side} n=${g.n} < ${MIN_CORRELATION_GROUP_N}`
+            )
+            const max = c.outcome === 'quality' ? 10 : 1000
+            const min = c.outcome === 'quality' ? 1 : 0
+            assertRealNumber(g.avg, `${c.factor}/${c.outcome}.${side}.avg`, {
+              min,
+              max,
             })
           }
         }
 
-        const phone = correlations.find((c) => c.factor === 'phoneUsedBeforeSleep')
-        assert(phone != null, 'phoneUsedBeforeSleep correlation present')
+        const phoneLatency = correlations.find(
+          (c) =>
+            c.factor === 'phoneUsedBeforeSleep' && c.outcome === 'latency'
+        )
+        const phoneQuality = correlations.find(
+          (c) =>
+            c.factor === 'phoneUsedBeforeSleep' && c.outcome === 'quality'
+        )
+        assert(phoneLatency != null, 'phone vs latency present')
+        assert(phoneQuality != null, 'phone vs quality present')
         assert(
-          phone!.groupA.avgLatency! > phone!.groupB.avgLatency!,
+          phoneLatency!.groupA.avg! > phoneLatency!.groupB.avg!,
           'seeded phone nights should have higher latency than no-phone'
         )
 
@@ -135,8 +151,8 @@ export async function runDashboardE2ETests(): Promise<boolean> {
           `    bed=${summary.avgBedtime} wake=${summary.avgWakeTime} latency=${summary.avgLatency}m`
         )
         console.log(
-          `    phone yes n=${phone!.groupA.n} lat=${phone!.groupA.avgLatency} | ` +
-            `no n=${phone!.groupB.n} lat=${phone!.groupB.avgLatency}`
+          `    phone vs latency yes n=${phoneLatency!.groupA.n} avg=${phoneLatency!.groupA.avg} | ` +
+            `no n=${phoneLatency!.groupB.n} avg=${phoneLatency!.groupB.avg}`
         )
       }
     )

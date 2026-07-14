@@ -1,9 +1,16 @@
 import { prisma } from '../src/lib/prisma'
+import { runAnalyticsRangeTests } from './analytics-range.test'
 import { runAnalyticsServiceTests } from './analytics.service.test'
 import { runCorrelationsTests } from './correlations.test'
 import { runDashboardE2ETests } from './dashboard-e2e.test'
 import { runExportStubTests } from './export.stub.test'
 import { runInsightsTests } from './insights.test'
+import { runRollingAverageTests } from './rolling-average.test'
+import { runExperimentComparisonTests } from './experiment.comparison.test'
+import { runExperimentCrudTests } from './experiment.crud.test'
+import { runWelchTTestTests } from './welch-ttest.test'
+import { runSmartPatternsTests } from './smart-patterns.test'
+import { runStreaksTests } from './streaks.test'
 import { runSleepEntryRepositoryTests } from './sleepEntry.repository.test'
 import { runSleepEntryServiceTests } from './sleepEntry.service.test'
 import { runSleepEntryValidationTests } from './sleepEntry.validation.test'
@@ -13,6 +20,12 @@ async function main() {
   console.log('==========================')
 
   const analyticsOk = await runAnalyticsServiceTests()
+  const rangeOk = await runAnalyticsRangeTests()
+  const rollingOk = await runRollingAverageTests()
+  const streaksOk = await runStreaksTests()
+  const patternsOk = await runSmartPatternsTests()
+  const experimentOk = await runExperimentCrudTests()
+  const experimentCompareOk = await runExperimentComparisonTests()
   const correlationsOk = await runCorrelationsTests()
   const insightsOk = await runInsightsTests()
   const exportOk = await runExportStubTests()
@@ -23,6 +36,13 @@ async function main() {
 
   const ok =
     analyticsOk &&
+    rangeOk &&
+    rollingOk &&
+    streaksOk &&
+    patternsOk &&
+    experimentOk &&
+    experimentCompareOk &&
+    welchOk &&
     correlationsOk &&
     insightsOk &&
     exportOk &&
