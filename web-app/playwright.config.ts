@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const backendDir = path.resolve(__dirname, '../../Backend')
+const backendDir = path.resolve(__dirname, '../Backend')
 
 /**
  * Step 112 — headless smoke: log entry → dashboard → analytics.

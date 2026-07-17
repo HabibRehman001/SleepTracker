@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-18 (after Step 112 — e2e smoke)
+Last updated: 2026-07-18 (after Step 123 — Zustand stores)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -29,7 +29,25 @@ Stack decision note:
 SleepTracker/
 ├── Summary.txt                          # THIS FILE — living project bible
 ├── README.md
+├── MONOREPO.md                          # Step 117 — web vs mobile independence
 ├── .gitignore
+│
+├── web-app/                             # Phase 1 Vite analytics UI (was Frontend/sleeptracker)
+│
+├── mobile-app/                          # Phase 2 Expo Sleep Lock (was sleep-lock-app)
+│   ├── app/                             # Expo Router screens (Step 118–119)
+│   │   ├── _layout.tsx
+│   │   ├── index.tsx                    # Home + Link to /onboarding
+│   │   └── onboarding.tsx               # Onboarding → router.replace('/')
+│   ├── native/                          # Platform modules — SleepLockModule
+│   ├── services/                        # Orchestration (lockService)
+│   ├── store/                           # Zustand: schedule / baseline / lockState
+│   │   ├── scheduleStore.ts
+│   │   ├── baselineStore.ts
+│   │   └── lockStateStore.ts
+│   ├── app.json                         # expo-router + expo-dev-client
+│   ├── package.json                     # main: expo-router/entry
+│   └── README.md
 │
 ├── Backend/
 │   ├── .env                             # PORT, DATABASE_URL, secrets (gitignored)
@@ -80,14 +98,13 @@ SleepTracker/
 │       ├── export.stub.test.ts          # Step 41 export stub unit tests
 │       └── helpers.ts
 │
-└── Frontend/
-    └── sleeptracker/                    # Vite React app
+└── web-app/                             # Phase 1 Vite React analytics (Step 117 rename)
         ├── index.html                   # <html class="dark"> by default
         ├── vite.config.ts               # React + Tailwind + @ alias
         ├── components.json              # shadcn config
         ├── src/
         │   ├── main.tsx                 # QueryClientProvider + Devtools
-        │   ├── App.tsx                  # Temp theme toggle + Button demo
+        │   ├── App.tsx                  # Routes + AppShell
         │   ├── index.css                # Tailwind + shadcn dark tokens (#0a0a0a)
         │   ├── components/
         │   │   ├── layout/              # AppShell (Step 46) — Linear-style sidebar
@@ -674,6 +691,84 @@ Playwright headless: log entry (unique notes) → dashboard today-notes →
 analytics charts. webServer starts API + Vite when needed.
 Command: npx playwright test
 
+----- 6.74 Phase 1 seal (Step 113) -----
+Commit + tag v1.0-web — Phase 1 web analytics is complete and usable alone.
+
+----- 6.75 Platform split LOCKED (Step 114) — do not re-litigate in Step 158+ -----
+Phase 2 focus/lock features are OS-asymmetric by design. Accepted before mobile work:
+
+  ANDROID (full capability path)
+  - True lock via Lock Task / Kiosk Mode
+  - Call blocking + background detection
+  - Requires Device Owner mode (one-time ADB setup on the owner's phone)
+  - Expect true enforcement; do not weaken Android to match iOS
+
+  iOS (soft / entitlement-limited path)
+  - Soft lock via Screen Time / FamilyControls only
+  - Can block app usage; CANNOT block calls or force-lock the screen
+  - Requires Family Controls entitlement from Apple (free; manual review; days)
+  - Do not promise Android-parity call blocking or hard kiosk on iOS
+
+  RULE: Build separate platform modules; never invent a fake “unified lock”
+  that claims call-block / hard-lock on iOS. Re-scope only if this split is
+  rejected — before Step 158+, not after shipping UI.
+
+----- 6.76 React Native tooling (Step 115) -----
+Expo + TypeScript blank template at mobile-app/; expo-dev-client installed.
+NOT Expo Go — Device Owner / FamilyControls need a custom development build.
+Scripts: npx expo run:android | npx expo run:ios | expo start --dev-client
+Bundle ids: com.sleeptracker.sleeplock (android.package + ios.bundleIdentifier).
+
+----- 6.77 Native lock boundary (Step 116) -----
+mobile-app/native/index.ts → SleepLockModule
+  { enableLock, disableLock, isLocked } — single shared TS interface.
+Mock: createMockSleepLock / getSleepLockModule('mock') for simulator UI work.
+Android/iOS native bindings deferred; must implement the same interface later.
+
+----- 6.78 Monorepo relationship (Step 117) — LOCKED -----
+Same git root; NOT a npm/yarn workspace. Folders:
+  web-app/     Phase 1 Vite analytics UI (independent npm install)
+  Backend/     Phase 1 analysis API only
+  mobile-app/  Phase 2 Expo enforcement (independent npm install)
+Separate backends by design — lock sessions ≠ sleep-entry models.
+See MONOREPO.md. Test: each of web-app/ and mobile-app/ npm install + run alone.
+
+----- 6.79 Expo Router scaffold (Step 118) -----
+mobile-app folders confirmed:
+  app/       Expo Router screens (_layout + index)
+  native/    SleepLockModule + mock (was nativeLock/)
+  services/  lockService wraps native/
+  store/     lock UI state
+main = expo-router/entry; plugins: expo-router, expo-dev-client.
+
+----- 6.80 Expo Router navigation (Step 119) -----
+Routes: app/index.tsx ↔ app/onboarding.tsx (Link + router.replace).
+Stack registers both screens. Test: npm run test:router.
+
+----- 6.81 Core mobile dependencies (Step 120) -----
+Installed: expo-location, expo-sensors, expo-task-manager,
+expo-background-fetch, expo-notifications, zustand, @tanstack/react-query.
+Purpose: geofencing, accelerometer/pedometer, background running detection.
+app.json plugins + iOS UIBackgroundModes + Android location permissions.
+QueryClientProvider in root layout; BACKGROUND_TASKS name constants ready.
+
+----- 6.82 NativeWind (Step 121) -----
+nativewind + tailwindcss@3; metro withNativeWind; babel nativewind/babel;
+global.css imported in app/_layout. Home uses className tokens.
+Test: npm run test:nativewind.
+
+----- 6.83 Dark theme parity (Step 122) -----
+mobile-app/theme/tokens mirrors web-app `.dark` (#0a0a0a background, etc.).
+Tailwind semantic colors: background/foreground/card/primary/muted/sidebar-*.
+Screens use bg-background text-foreground; userInterfaceStyle: dark.
+Test: npm run test:dark-theme.
+
+----- 6.84 Zustand stores (Step 123) -----
+store/scheduleStore.ts — bedtime/waketime + lockedIn
+store/baselineStore.ts — onboarding auto-detected stats
+store/lockStateStore.ts — isLocked/busy UI (home uses this)
+Test: npm run test:stores
+
 ================================================================================
 7. API REFERENCE (current)
 ================================================================================
@@ -717,10 +812,15 @@ Backend:
   npx prisma db seed            # 30 days of data
   npm run dev                   # http://localhost:4000
 
-Frontend:
-  cd Frontend/sleeptracker
+Frontend (web-app):
+  cd web-app
   npm install
   npm run dev
+
+Mobile (mobile-app — Phase 2, independent):
+  cd mobile-app
+  npm install
+  npx expo start --dev-client
 
 Prisma Studio:
   cd Backend && npx prisma studio   # http://localhost:5555
@@ -754,6 +854,69 @@ Tests (Backend):
 ================================================================================
 11. CHANGE LOG
 ================================================================================
+
+[2026-07-18] Step 124 — Commit scaffolding
+- feat: scaffold Expo RN app with routing, native module boundary, stores
+
+[2026-07-18] Step 123 — Zustand stores (schedule / baseline / lockState)
+- scheduleStore: bedtime, waketime, lockIn (immutable after lock).
+- baselineStore: onboarding auto-detect stats shape.
+- lockStateStore: isLocked/busy; home screen migrated off lockStore.
+- TESTED: npm run test:stores; tsc --noEmit.
+
+[2026-07-18] Step 122 — Dark theme matching web app
+- theme/tokens from web-app `.dark` (#0a0a0a + semantic palette).
+- Tailwind extend colors; screens use bg-background / text-foreground.
+- TESTED: npm run test:dark-theme; test:nativewind; tsc --noEmit.
+
+[2026-07-18] Step 121 — NativeWind (Tailwind for React Native)
+- Installed nativewind + tailwindcss@3; reanimated/worklets peers.
+- Config: tailwind.config.js, babel, metro withNativeWind, global.css.
+- Home screen: className bg-black / text-white on View + Text.
+- TESTED: npm run test:nativewind; tsc --noEmit.
+
+[2026-07-18] Step 120 — Install core mobile dependencies
+- expo-location / sensors / task-manager / background-fetch / notifications.
+- zustand + @tanstack/react-query; QueryClientProvider in app/_layout.
+- Config plugins + background location permissions in app.json.
+- TESTED: npm run test:core-deps; tsc --noEmit.
+
+[2026-07-18] Step 119 — Install Expo Router for navigation
+- Confirmed expo-router; added app/onboarding.tsx.
+- Home Link → /onboarding; onboarding router.replace('/') back home.
+- TESTED: npm run test:router; tsc --noEmit.
+
+[2026-07-18] Step 118 — Scaffold Expo app (Expo Router + folders)
+- Installed expo-router; main → expo-router/entry.
+- Folders: app/ (screens), native/ (SleepLockModule), services/, store/.
+- Removed legacy App.tsx / index.ts / nativeLock/.
+- TESTED: check-scaffold + check-native-lock + tsc --noEmit.
+
+[2026-07-18] Step 117 — Monorepo relationship (LOCKED)
+- Same root, separate apps: web-app/ + mobile-app/ (no workspace hoisting).
+- Renamed Frontend/sleeptracker → web-app, sleep-lock-app → mobile-app.
+- Separate backends by design (analysis vs enforcement). See MONOREPO.md.
+- TESTED: both npm install; web vite --version / mobile expo config; independence script.
+
+[2026-07-18] Step 116 — Plan native module boundary (SleepLockModule)
+- nativeLock/index.ts: enableLock / disableLock / isLocked interface.
+- Mock + getSleepLockModule('mock'); App toggles lock via interface only.
+- TESTED: npm run test:native-lock (mock enable/disable/isLocked).
+
+[2026-07-18] Step 115 — Choose React Native tooling (Expo custom dev build)
+- Created sleep-lock-app via create-expo-app (blank TypeScript).
+- Installed expo-dev-client; scripts use expo run:android / run:ios (not Expo Go).
+- TESTED: check-expo-tooling.mjs OK; expo prebuild generated ./android.
+- run:android blocked here (no Android SDK / adb). run:ios blocked (Linux, needs macOS).
+
+[2026-07-18] Step 114 — Architecture: platform split re-confirmed (LOCKED)
+- Android: Device Owner → Lock Task/kiosk, call blocking, background detection.
+- iOS: FamilyControls/Screen Time soft lock only; no call block / no force-lock;
+  Family Controls entitlement required (Apple review).
+- Accepted before Step 158+ investment; documented in §6.75. No code this step.
+
+[2026-07-18] Step 113 — Phase 1 commit + tag v1.0-web
+- feat: complete phase 1 sleep analytics web app; tag v1.0-web.
 
 [2026-07-18] Step 112 — End-to-end smoke test (Playwright)
 - Installed @playwright/test + playwright; chromium browser.

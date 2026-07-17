@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const backendRoot = join(root, '../../Backend')
+const backendRoot = join(root, '../Backend')
 const service = readFileSync(
   join(backendRoot, 'src/services/analytics.service.ts'),
   'utf8'

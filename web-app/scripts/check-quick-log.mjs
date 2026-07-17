@@ -69,7 +69,7 @@ assert.equal(
 
 // Backend analytics null-safety: duration uses bed when estimated missing
 const analytics = readFileSync(
-  join(root, '../../Backend/src/services/analytics.service.ts'),
+  join(root, '../Backend/src/services/analytics.service.ts'),
   'utf8'
 )
 assert.match(
