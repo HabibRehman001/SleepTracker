@@ -84,26 +84,43 @@ const STATS: StatDef[] = [
 export function StatCardsGrid({
   stats,
   isLoading,
+  hasData = true,
 }: {
   stats?: DashboardStats
   isLoading?: boolean
+  /** False when zero nights — avoid fake 0 debt / 100 consistency. */
+  hasData?: boolean
 }) {
   return (
     <div
       className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8"
       data-testid="stat-cards-grid"
     >
-      {STATS.map(({ key, label, format, trend, hint }) => (
-        <StatCard
-          key={key}
-          data-testid={`stat-card-${key}`}
-          label={label}
-          value={stats ? format(stats) : '—'}
-          trend={stats && trend ? trend(stats) : undefined}
-          hint={hint}
-          isLoading={isLoading}
-        />
-      ))}
+      {STATS.map(({ key, label, format, trend, hint }) => {
+        const value =
+          !hasData && (key === 'sleepDebt' || key === 'consistencyScore')
+            ? '—'
+            : stats
+              ? format(stats)
+              : '—'
+        const trendText =
+          !hasData
+            ? undefined
+            : stats && trend
+              ? trend(stats)
+              : undefined
+        return (
+          <StatCard
+            key={key}
+            data-testid={`stat-card-${key}`}
+            label={label}
+            value={value}
+            trend={trendText}
+            hint={hint}
+            isLoading={isLoading}
+          />
+        )
+      })}
     </div>
   )
 }

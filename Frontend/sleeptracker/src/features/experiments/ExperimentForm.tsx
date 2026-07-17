@@ -1,7 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as React from 'react'
 import { useForm } from 'react-hook-form'
-import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,10 +29,10 @@ export function ExperimentForm() {
         startDate: values.startDate,
         endDate: values.endDate?.trim() ? values.endDate : null,
       })
-      toast.success('Experiment created')
+      // Success toast from useCreateExperiment (Step 110).
       form.reset(experimentFormDefaults())
     } catch {
-      toast.error('Could not create experiment')
+      // Error toast from useCreateExperiment (Step 110).
     }
   })
 

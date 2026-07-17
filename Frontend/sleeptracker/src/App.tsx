@@ -7,6 +7,7 @@ import {
   ExperimentDetailPage,
   ExperimentsPage,
 } from '@/features/experiments'
+import { ReportsPage } from '@/features/reports'
 import { LogEntryPage } from '@/features/sleep-entry'
 
 function PlaceholderPage({ label }: { label: string }) {
@@ -27,7 +28,7 @@ export default function App() {
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="experiments" element={<ExperimentsPage />} />
         <Route path="experiments/:id" element={<ExperimentDetailPage />} />
-        <Route path="reports" element={<PlaceholderPage label="Reports" />} />
+        <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<PlaceholderPage label="Settings" />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

@@ -9,6 +9,7 @@ import { runRollingAverageTests } from './rolling-average.test'
 import { runExperimentComparisonTests } from './experiment.comparison.test'
 import { runExperimentCrudTests } from './experiment.crud.test'
 import { runWelchTTestTests } from './welch-ttest.test'
+import { runMonthlyReportTests } from './monthly-report.test'
 import { runSmartPatternsTests } from './smart-patterns.test'
 import { runStreaksTests } from './streaks.test'
 import { runSleepEntryRepositoryTests } from './sleepEntry.repository.test'
@@ -26,6 +27,8 @@ async function main() {
   const patternsOk = await runSmartPatternsTests()
   const experimentOk = await runExperimentCrudTests()
   const experimentCompareOk = await runExperimentComparisonTests()
+  const welchOk = await runWelchTTestTests()
+  const monthlyOk = await runMonthlyReportTests()
   const correlationsOk = await runCorrelationsTests()
   const insightsOk = await runInsightsTests()
   const exportOk = await runExportStubTests()
@@ -43,6 +46,7 @@ async function main() {
     experimentOk &&
     experimentCompareOk &&
     welchOk &&
+    monthlyOk &&
     correlationsOk &&
     insightsOk &&
     exportOk &&

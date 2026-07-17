@@ -8,6 +8,8 @@ import {
   SleepTimelineChart,
   WeekdayWeekendChart,
 } from '@/components/charts'
+import { EmptyState, FIRST_NIGHT_CTA } from '@/components/ui/EmptyState'
+import { SleepTrackerLoader } from '@/components/ui/Loader'
 import { DateRangeFilter } from '@/features/analytics/DateRangeFilter'
 import {
   durationLimitForRange,
@@ -26,8 +28,7 @@ import { InsightsPanelView } from '@/features/dashboard/InsightsPanel'
 import { useSleepEntries } from '@/features/sleep-entry'
 
 /**
- * Step 90 — full analytics surface: range filter + charts + correlations + insights.
- * Changing the range updates query keys (API refetch) and filters chart entries together.
+ * Step 90 — analytics surface; Step 109 — loading + empty guards.
  */
 export function AnalyticsPage() {
   const [range, setRange] = React.useState<AnalyticsDateRange>('30d')
@@ -59,6 +60,8 @@ export function AnalyticsPage() {
     scatterFetching ||
     insightsFetching
 
+  const noDataYet = !entriesLoading && allEntries.length === 0
+
   return (
     <div
       className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-5"
@@ -78,57 +81,77 @@ export function AnalyticsPage() {
         <DateRangeFilter value={range} onChange={setRange} />
       </div>
 
-      <section className="min-w-0 space-y-2" data-testid="analytics-charts">
-        <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-          Charts
-        </h2>
-        <DashboardCharts entries={entries} />
-        <SleepDurationChart
-          entries={entries}
-          title={durationTitle}
-          limit={durationLimit}
+      {entriesLoading && allEntries.length === 0 ? (
+        <SleepTrackerLoader
+          fullScreen={false}
+          size="md"
+          label="Loading analytics…"
         />
-        <SleepQualityOverTimeChart entries={entries} />
-        <QualityContributionHeatmap entries={entries} />
-        <SleepTimelineChart
-          entries={entries}
-          limit={durationLimit}
-          title={
-            range === 'all'
-              ? 'Sleep timeline'
-              : `Sleep timeline (${range})`
-          }
+      ) : noDataYet ? (
+        <EmptyState
+          title="No analytics yet"
+          description={FIRST_NIGHT_CTA}
+          data-testid="analytics-empty"
         />
-        <BedtimeWakeConsistencyCharts entries={entries} />
-        <WeekdayWeekendChart entries={entries} />
-      </section>
+      ) : (
+        <>
+          <section className="min-w-0 space-y-2" data-testid="analytics-charts">
+            <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+              Charts
+            </h2>
+            <DashboardCharts entries={entries} />
+            <SleepDurationChart
+              entries={entries}
+              title={durationTitle}
+              limit={durationLimit}
+            />
+            <SleepQualityOverTimeChart entries={entries} />
+            <QualityContributionHeatmap entries={entries} />
+            <SleepTimelineChart
+              entries={entries}
+              limit={durationLimit}
+              title={
+                range === 'all'
+                  ? 'Sleep timeline'
+                  : `Sleep timeline (${range})`
+              }
+            />
+            <BedtimeWakeConsistencyCharts entries={entries} />
+            <WeekdayWeekendChart entries={entries} />
+          </section>
 
-      <section className="space-y-2" data-testid="analytics-insights">
-        <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-          Insights
-        </h2>
-        <InsightsPanelView
-          insights={insights}
-          isLoading={insightsLoading || (insightsFetching && insights == null)}
-        />
-      </section>
+          <section className="space-y-2" data-testid="analytics-insights">
+            <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+              Insights
+            </h2>
+            <InsightsPanelView
+              insights={insights}
+              isLoading={
+                insightsLoading || (insightsFetching && insights == null)
+              }
+            />
+          </section>
 
-      <section
-        className="min-w-0 space-y-2"
-        data-testid="analytics-correlations"
-      >
-        <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-          Correlations
-        </h2>
-        <CorrelationScatterCharts
-          scatters={scatters}
-          isLoading={scatterLoading || (scatterFetching && scatters == null)}
-        />
-        <CorrelationCards
-          correlations={correlations}
-          isLoading={corrLoading || (corrFetching && correlations == null)}
-        />
-      </section>
+          <section
+            className="min-w-0 space-y-2"
+            data-testid="analytics-correlations"
+          >
+            <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+              Correlations
+            </h2>
+            <CorrelationScatterCharts
+              scatters={scatters}
+              isLoading={
+                scatterLoading || (scatterFetching && scatters == null)
+              }
+            />
+            <CorrelationCards
+              correlations={correlations}
+              isLoading={corrLoading || (corrFetching && correlations == null)}
+            />
+          </section>
+        </>
+      )}
     </div>
   )
 }

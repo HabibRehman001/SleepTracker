@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-15 (after Step 101 — Experiments list cards)
+Last updated: 2026-07-18 (after Step 112 — e2e smoke)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -299,12 +299,26 @@ Routes:
 - GET /api/stats/summary → computeSummary(findAll())  (Step 34)
 
 ----- 5.7 Export service + route -----
-- sleepEntriesToCsv(entries) — pure CSV builder (working path)
-- exportService.exportSleepEntriesCsv() — findAll then CSV
-- GET /api/export/sleep-entries.csv → text/csv download
-- Step 41 stubs (full impl Phase 1K steps 104–106):
-  - GET /api/export/json → { status:'stub', format:'json', plannedSteps, entryCount }
-  - GET /api/export/csv → stub CSV text (Content-Disposition attachment)
+- sleepEntriesToCsv(entries) — flattened SleepEntry + children, one row/day (Step 104)
+- UTF-8 BOM + CRLF + RFC4180 escaping for Excel/Sheets
+- sleepEntriesToJsonExport(entries) — full nested findAll as-is (Step 105)
+- sleepEntriesToMarkdown(entries) — ## yyyy-MM-dd + bullet fields (Step 106)
+- jsonExportEntryToSeedCreateData — re-import via seed `{ create: … }` shape
+- GET /api/export/csv → attachment sleeptracker-export.csv
+- GET /api/export/sleep-entries.csv → same CSV builder
+- GET /api/export/json → { format, exportedAt, entryCount, entries[] }
+- GET /api/export/markdown (alias /md) → text/markdown daily log
+- GET /api/export/pdf?month=yyyy-MM → one-page monthly PDF (@react-pdf/renderer)
+  with stats + quality bar chart PNG (Step 107)
+
+----- 5.7b Monthly report aggregator (Step 102) -----
+buildMonthlyReport(entries, month: 'yyyy-MM') in services/monthlyReport.ts:
+- Filters to calendar month (date-fns format local)
+- avgDuration / avgQuality = means for that month
+- bestDay / worstDay = max/min by sleepQuality (first wins ties)
+- insights = generateInsights(computeCorrelations(monthEntries))
+Step 103: buildMonthOverMonthCompare + compareMonthlySummaries (up/down + improved tone)
+GET /api/reports/compare?month=yyyy-MM (month optional → current vs previous)
 
 ----- 5.8 Error handling -----
 - AppError(message, statusCode)
@@ -614,6 +628,52 @@ List rows link to detail; useExperiment + useExperimentComparison.
 /experiments — card grid: name, date range, "Quality improved by X%" (or declined /
 not enough data). Cards link to detail; create form retained above the grid.
 
+----- 6.63 Monthly report data (Step 102) -----
+Backend pure aggregator buildMonthlyReport — avg duration/quality, best/worst night,
+month-scoped insights.
+
+----- 6.64 Reports page MoM (Step 103) -----
+/reports — two-column This month | Last month; green ArrowUp when metrics improved
+(avg quality, duration, best/worst night). GET /api/reports/compare via useMonthCompare.
+
+----- 6.65 CSV export (Step 104) -----
+GET /api/export/csv — one flattened row per night (mood/food/exercise/env/health).
+Reports page "Download CSV" link.
+
+----- 6.66 JSON export (Step 105) -----
+GET /api/export/json — nested SleepEntry + children as-is; re-imports via seed create shape.
+
+----- 6.67 Markdown export (Step 106) -----
+GET /api/export/markdown — human-readable ## date headings + field bullets for notes apps.
+
+----- 6.68 PDF monthly report (Step 107) -----
+GET /api/export/pdf — @react-pdf/renderer one-pager from monthly report data;
+quality chart as embedded PNG; Reports "Download PDF".
+
+----- 6.69 Export panel buttons (Step 108) -----
+Reports ExportPanel: month selector + CSV/JSON/Markdown/PDF buttons.
+Each fetch → blob: URL → temporary <a download="sleep-export-YYYY-MM.ext">.
+
+----- 6.70 Loading & empty states (Step 109) -----
+SleepTrackerLoader (moon + Z's) styles in index.css; EmptyState CTA:
+"Log your first night to see stats here". Dashboard/Analytics/Reports/Experiments
+show loader while fetching; empty DB → EmptyState (no blank/NaN KPIs).
+
+----- 6.71 Mutation toasts (Step 110) -----
+sonner Toaster in main; api-client throws on !ok + offline ("Cannot reach the server").
+useSaveSleepEntry / useCreateExperiment / useDeleteExperiment toast success+error.
+Export downloads also toast. Disconnect backend → clear error toast on save.
+
+----- 6.72 Component tests (Step 111) -----
+vitest + @testing-library/react (jsdom). Suites: SleepEntryForm validation,
+CorrelationCard both group states, DashboardPage with seeded QueryClient data.
+Command: npx vitest run
+
+----- 6.73 E2E smoke (Step 112) -----
+Playwright headless: log entry (unique notes) → dashboard today-notes →
+analytics charts. webServer starts API + Vite when needed.
+Command: npx playwright test
+
 ================================================================================
 7. API REFERENCE (current)
 ================================================================================
@@ -639,9 +699,13 @@ GET  /api/analytics/scatter          { scatters: points + OLS regression }
 GET  /api/analytics/patterns         { warnings, highlights } smart detections
                                      optional ?range=7d|30d|90d|all (default all)
 GET  /api/stats/summary              dashboard window stats (7/30 day)
-GET  /api/export/sleep-entries.csv   working CSV download
-GET  /api/export/json                stub JSON (full in steps 104–106)
-GET  /api/export/csv                 stub CSV  (full in steps 104–106)
+GET  /api/reports/compare            this month vs last (metrics + up/down tones)
+                                     optional ?month=yyyy-MM
+GET  /api/export/csv                 flattened CSV (?month=yyyy-MM → sleep-export-…)
+GET  /api/export/json                nested JSON (?month=yyyy-MM)
+GET  /api/export/markdown            Markdown daily log (?month=yyyy-MM)
+GET  /api/export/md                  alias of /markdown
+GET  /api/export/pdf                 monthly PDF (?month=yyyy-MM)
 
 ================================================================================
 8. HOW TO RUN
@@ -690,6 +754,64 @@ Tests (Backend):
 ================================================================================
 11. CHANGE LOG
 ================================================================================
+
+[2026-07-18] Step 112 — End-to-end smoke test (Playwright)
+- Installed @playwright/test + playwright; chromium browser.
+- e2e/smoke.spec.ts: save log → dashboard today-notes → analytics charts.
+- TESTED: npx playwright test (headless) → 1 passed.
+
+[2026-07-18] Step 111 — Component tests for critical UI
+- Installed vitest + @testing-library/react (+ jest-dom, user-event, jsdom).
+- Tests: SleepEntryForm validation, CorrelationCard YES/NO (+ empty), Dashboard
+  with mock React Query data.
+- TESTED: npx vitest run → 6 passed; check-component-tests.mjs.
+
+[2026-07-18] Step 110 — Toast notifications for all mutations
+- Hardened api-client: HTTP !ok + offline → thrown Error with clear message.
+- Mutation hooks toast success/error (save / create / delete); export too.
+- TESTED: check-mutation-toasts.mjs; check-save-toast.mjs; tsc -b.
+
+[2026-07-17] Step 109 — Loading & empty states everywhere
+- Wired SleepTrackerLoader + .stl-* CSS; EmptyState with first-night CTA.
+- Dashboard/Analytics/Reports/Experiments: loader vs empty (no blank/NaN).
+- Debt/consistency/stat cards gate zero-night false positives.
+- TESTED: check-empty-states.mjs; related FE contracts; tsc -b.
+
+[2026-07-17] Step 108 — Export panel (blob downloads)
+- ExportPanel: month selector + CSV/JSON/Markdown/PDF; sleep-export-YYYY-MM.* names.
+- downloadBlobViaAnchor (temporary <a> + blob: URL); exports accept ?month=.
+- TESTED: check-export-buttons.mjs; npm test; tsc -b.
+
+[2026-07-17] Step 107 — PDF monthly report export
+- @react-pdf/renderer one-pager from buildMonthlyReport / MoM compare.
+- Quality bar chart as embedded PNG (hand-rolled, no canvas); GET /api/export/pdf.
+- TESTED: npm test (PDF magic, month, stats metadata, Image 520×160).
+
+[2026-07-17] Step 106 — Markdown export (daily log)
+- sleepEntriesToMarkdown: ## yyyy-MM-dd + - **Field:** bullets per night.
+- GET /api/export/markdown (+ /md); Reports "Download Markdown".
+- TESTED: npm test (headings + bullets intact).
+
+[2026-07-17] Step 105 — JSON export (nested as-is)
+- GET /api/export/json returns { format, exportedAt, entryCount, entries }.
+- jsonExportEntryToSeedCreateData re-imports via seed `{ create }` shape.
+- TESTED: npm test (JSON export re-imports via seed create shape).
+
+[2026-07-17] Step 104 — CSV export (flattened rows)
+- Hand-rolled sleepEntriesToCsv: one row/day, full nested columns, UTF-8 BOM.
+- GET /api/export/csv is real export (not stub); Reports "Download CSV" link.
+- TESTED: npm test (export.csv one row per day + headers); tsc -b.
+
+[2026-07-17] Step 103 — Reports page (this vs last month)
+- Two-column ReportsPage; green ArrowUp when MoM metrics improve.
+- compareMonthlySummaries + GET /api/reports/compare; avgQuality on monthly report.
+- TESTED: npm test (month 2 better → all up/improved); check-reports-page.mjs; tsc -b.
+
+[2026-07-17] Step 102 — Monthly report data aggregator
+- buildMonthlyReport(entries, yyyy-MM): avgDuration, bestDay, worstDay, insights.
+- monthlyReport.ts; seeded month spot-check vs independent quality scan.
+- Fixed run-all.ts missing welchOk assignment (was ReferenceError risk).
+- TESTED: npm test (monthly.report + full suite).
 
 [2026-07-15] Step 101 — Experiments list card grid
 - ExperimentListCard + qualityChangeSummary (% vs before); grid on ExperimentsPage.

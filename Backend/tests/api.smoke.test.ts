@@ -156,24 +156,64 @@ export async function runApiSmokeTests(): Promise<boolean> {
   )
 
   results.push(
-    await runTest('GET /api/export/json stub', async () => {
+    await runTest('GET /api/export/json nested export', async () => {
       const { status, body } = await getJson('/api/export/json')
       assertEqual(status, 200, 'status')
       assert(body && typeof body === 'object', 'object')
-      const stub = body as { status: string; format: string; plannedSteps: string }
-      assertEqual(stub.status, 'stub', 'stub status')
-      assertEqual(stub.format, 'json', 'format')
-      assertEqual(stub.plannedSteps, '104-106', 'plannedSteps')
+      const payload = body as {
+        format: string
+        entryCount: number
+        entries: unknown[]
+      }
+      assertEqual(payload.format, 'json', 'format')
+      assert(payload.entryCount >= 14, 'entryCount')
+      assert(Array.isArray(payload.entries), 'entries array')
+      assertEqual(payload.entries.length, payload.entryCount, 'entries length')
+      const first = payload.entries[0] as {
+        date: string
+        sleepQuality: number | null
+        mood: { mood: number } | null
+      }
+      assert(typeof first.date === 'string', 'entry date string')
+      assert(first.mood == null || typeof first.mood.mood === 'number', 'nested mood')
     })
   )
 
   results.push(
-    await runTest('GET /api/export/csv stub', async () => {
+    await runTest('GET /api/export/csv flattened export', async () => {
       const response = await fetch(`${BASE_URL}/api/export/csv`)
       assertEqual(response.status, 200, 'status')
       const text = await response.text()
-      assert(text.includes('status,stub'), 'stub csv')
-      assert(text.includes('104-106'), 'planned steps note')
+      assert(text.includes('sleepQuality'), 'csv header sleepQuality')
+      assert(text.includes('phoneUsedBeforeSleep'), 'nested env header')
+      assert(!text.includes('status,stub'), 'not the old stub')
+      const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean)
+      assert(lines.length >= 15, `header + ≥14 data rows, got ${lines.length}`)
+    })
+  )
+
+  results.push(
+    await runTest('GET /api/export/markdown daily log', async () => {
+      const response = await fetch(`${BASE_URL}/api/export/markdown`)
+      assertEqual(response.status, 200, 'status')
+      const text = await response.text()
+      assert(text.includes('# SleepTracker export'), 'doc title')
+      assert(/^## \d{4}-\d{2}-\d{2}/m.test(text), '## date heading')
+      assert(text.includes('- **Sleep quality:**'), 'bullet field')
+    })
+  )
+
+  results.push(
+    await runTest('GET /api/export/pdf monthly report', async () => {
+      const response = await fetch(`${BASE_URL}/api/export/pdf`)
+      assertEqual(response.status, 200, 'status')
+      assert(
+        response.headers.get('content-type')?.includes('application/pdf'),
+        'content-type pdf'
+      )
+      const buf = Buffer.from(await response.arrayBuffer())
+      assertEqual(buf.subarray(0, 5).toString('utf8'), '%PDF-', 'PDF magic')
+      assert(buf.length > 1000, 'non-trivial PDF')
     })
   )
 

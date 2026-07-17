@@ -1,4 +1,6 @@
 import { Button } from '@/components/ui/button'
+import { EmptyState, FIRST_NIGHT_CTA } from '@/components/ui/EmptyState'
+import { SleepTrackerLoader } from '@/components/ui/Loader'
 import { useCorrelations, useScatterCorrelations } from '@/features/analytics'
 import { CorrelationCards } from '@/features/dashboard/CorrelationCards'
 import { CorrelationScatterCharts } from '@/features/dashboard/CorrelationScatterCharts'
@@ -23,14 +25,16 @@ import { useDashboardStats } from '@/features/dashboard/useDashboardStats'
 import { QuickLogActions, useSleepEntries } from '@/features/sleep-entry'
 
 /**
- * Grafana-dense dashboard (Step 59):
- * KPI strip → charts → insights → correlation cards.
+ * Grafana-dense dashboard (Step 59) + empty/loading guards (Step 109).
  */
 export function DashboardPage() {
   const { data: entries = [], isLoading, dataUpdatedAt } = useSleepEntries()
   const { data: stats, isLoading: statsLoading } = useDashboardStats()
   const { data: correlations, isLoading: corrLoading } = useCorrelations()
   const { data: scatters, isLoading: scatterLoading } = useScatterCorrelations()
+
+  const hasNights = entries.length > 0
+  const bootLoading = isLoading && !hasNights
 
   return (
     <div
@@ -57,58 +61,84 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div
-        className="grid gap-2 sm:grid-cols-2"
-        data-testid="highlight-cards"
-      >
-        <TodayCard />
-        <SleepDebtCard />
-      </div>
-
-      <AverageSleepCards />
-
-      <ConsistencyScoreCard />
-
-      <ScheduleTimingCards />
-
-      <section className="space-y-2">
-        <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-          Overview
-        </h2>
-        <StatCardsGrid stats={stats} isLoading={statsLoading} />
-      </section>
-
-      <section className="min-w-0 space-y-2" data-testid="dashboard-trends">
-        <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-          Trends
-        </h2>
-        <DashboardCharts entries={entries} />
-        <SleepDurationChart entries={entries} />
-        <SleepQualityOverTimeChart entries={entries} />
-        <QualityContributionHeatmap entries={entries} />
-        <SleepTimelineChart entries={entries} title="Sleep timeline (14d)" />
-        <BedtimeWakeConsistencyCharts entries={entries} />
-        <WeekdayWeekendChart entries={entries} />
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-          Insights
-        </h2>
-        <InsightsPanel />
-        <PatternsDetectedCard />
-      </section>
-
-      <section className="min-w-0 space-y-2" data-testid="dashboard-correlations">
-        <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-          Correlations
-        </h2>
-        <CorrelationScatterCharts
-          scatters={scatters}
-          isLoading={scatterLoading}
+      {bootLoading ? (
+        <SleepTrackerLoader
+          fullScreen={false}
+          size="md"
+          label="Loading your sleep data…"
         />
-        <CorrelationCards correlations={correlations} isLoading={corrLoading} />
-      </section>
+      ) : !hasNights ? (
+        <EmptyState
+          title="No sleep data yet"
+          description={FIRST_NIGHT_CTA}
+          data-testid="dashboard-empty"
+        />
+      ) : (
+        <>
+          <div
+            className="grid gap-2 sm:grid-cols-2"
+            data-testid="highlight-cards"
+          >
+            <TodayCard />
+            <SleepDebtCard />
+          </div>
+
+          <AverageSleepCards />
+
+          <ConsistencyScoreCard />
+
+          <ScheduleTimingCards />
+
+          <section className="space-y-2">
+            <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+              Overview
+            </h2>
+            <StatCardsGrid
+              stats={stats}
+              isLoading={statsLoading}
+              hasData={hasNights}
+            />
+          </section>
+
+          <section className="min-w-0 space-y-2" data-testid="dashboard-trends">
+            <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+              Trends
+            </h2>
+            <DashboardCharts entries={entries} />
+            <SleepDurationChart entries={entries} />
+            <SleepQualityOverTimeChart entries={entries} />
+            <QualityContributionHeatmap entries={entries} />
+            <SleepTimelineChart entries={entries} title="Sleep timeline (14d)" />
+            <BedtimeWakeConsistencyCharts entries={entries} />
+            <WeekdayWeekendChart entries={entries} />
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+              Insights
+            </h2>
+            <InsightsPanel />
+            <PatternsDetectedCard />
+          </section>
+
+          <section
+            className="min-w-0 space-y-2"
+            data-testid="dashboard-correlations"
+          >
+            <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+              Correlations
+            </h2>
+            <CorrelationScatterCharts
+              scatters={scatters}
+              isLoading={scatterLoading}
+            />
+            <CorrelationCards
+              correlations={correlations}
+              isLoading={corrLoading}
+            />
+          </section>
+        </>
+      )}
     </div>
   )
 }

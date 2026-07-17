@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { ArrowLeft } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { SleepTrackerLoader } from '@/components/ui/Loader'
 import { ExperimentDiffCards } from '@/features/experiments/ExperimentDiffCards'
 import { ExperimentQualityChart } from '@/features/experiments/ExperimentQualityChart'
 import {
@@ -28,7 +29,11 @@ export function ExperimentDetailPage() {
   if (isLoading) {
     return (
       <div className="mx-auto max-w-3xl" data-testid="experiment-detail-page">
-        <p className="text-muted-foreground text-sm">Loading experiment…</p>
+        <SleepTrackerLoader
+          fullScreen={false}
+          size="sm"
+          label="Loading experiment…"
+        />
       </div>
     )
   }

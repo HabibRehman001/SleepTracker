@@ -112,6 +112,8 @@ export type SleepDebtCardProps = {
   /** Signed minutes: current − previous (positive = more debt). */
   deltaMinutes?: number | null
   isFetching?: boolean
+  /** No nights logged yet — show placeholder instead of 0h 0m. */
+  empty?: boolean
   className?: string
 }
 
@@ -123,6 +125,7 @@ export function SleepDebtCardView({
   trend = 'flat',
   deltaMinutes = null,
   isFetching,
+  empty = false,
   className,
 }: SleepDebtCardProps) {
   const meta = TREND_META[trend]
@@ -151,24 +154,33 @@ export function SleepDebtCardView({
             className="text-2xl font-semibold tabular-nums tracking-tight"
             data-testid="sleep-debt-value"
           >
-            {formatSleepDebt(debtMinutes)}
+            {empty ? '—' : formatSleepDebt(debtMinutes)}
           </p>
-          <div
-            className={cn(
-              'flex items-center gap-1 text-[10px] font-medium tabular-nums',
-              meta.className
-            )}
-            data-testid="sleep-debt-trend"
-            data-trend={trend}
-            title={`${meta.label} · ${deltaLabel}`}
-          >
-            <Icon
-              className="size-3.5 shrink-0"
-              aria-hidden
-              data-testid="sleep-debt-trend-arrow"
-            />
-            <span data-testid="sleep-debt-trend-label">{deltaLabel}</span>
-          </div>
+          {empty ? (
+            <p
+              className="text-muted-foreground text-[10px]"
+              data-testid="sleep-debt-empty"
+            >
+              Log nights to compute
+            </p>
+          ) : (
+            <div
+              className={cn(
+                'flex items-center gap-1 text-[10px] font-medium tabular-nums',
+                meta.className
+              )}
+              data-testid="sleep-debt-trend"
+              data-trend={trend}
+              title={`${meta.label} · ${deltaLabel}`}
+            >
+              <Icon
+                className="size-3.5 shrink-0"
+                aria-hidden
+                data-testid="sleep-debt-trend-arrow"
+              />
+              <span data-testid="sleep-debt-trend-label">{deltaLabel}</span>
+            </div>
+          )}
         </CardContent>
       </Card>
     </React.Fragment>
@@ -177,9 +189,15 @@ export function SleepDebtCardView({
 
 /** Dashboard container — stats debt + entry-based 7-day trend. */
 export function SleepDebtCard() {
-  const { data: stats, isFetching: statsFetching } = useDashboardStats()
-  const { data: entries = [], isFetching: entriesFetching } = useSleepEntries()
+  const { data: stats, isFetching: statsFetching, isLoading: statsLoading } =
+    useDashboardStats()
+  const {
+    data: entries = [],
+    isFetching: entriesFetching,
+    isLoading: entriesLoading,
+  } = useSleepEntries()
 
+  const empty = !entriesLoading && entries.length === 0
   const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date))
   const currentWindow = sorted.slice(-7)
   const previousWindow = sorted.length >= 14 ? sorted.slice(-14, -7) : null
@@ -200,7 +218,10 @@ export function SleepDebtCard() {
       debtMinutes={debtMinutes}
       trend={trend}
       deltaMinutes={deltaMinutes}
-      isFetching={statsFetching || entriesFetching}
+      empty={empty}
+      isFetching={
+        statsFetching || entriesFetching || statsLoading || entriesLoading
+      }
     />
   )
 }

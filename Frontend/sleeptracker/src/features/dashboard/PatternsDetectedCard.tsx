@@ -67,7 +67,7 @@ export function PatternsDetectedCardView({
             className="text-muted-foreground text-sm"
             data-testid="patterns-empty"
           >
-            No schedule warnings right now.
+            Not enough data to detect patterns yet.
           </p>
         ) : (
           <div className="space-y-2">

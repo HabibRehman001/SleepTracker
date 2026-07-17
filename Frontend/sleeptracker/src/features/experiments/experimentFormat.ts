@@ -21,6 +21,7 @@ export function experimentDateKey(iso: string): string {
 }
 
 export function formatMetricValue(value: number, unit: string): string {
+  if (!Number.isFinite(value)) return '—'
   if (unit === 'points') return value.toFixed(1)
   if (unit === 'hours') return `${value.toFixed(1)}h`
   if (unit === 'minutes') return `${Math.round(value)}m`
@@ -28,6 +29,7 @@ export function formatMetricValue(value: number, unit: string): string {
 }
 
 export function formatDiffValue(diff: number, unit: string): string {
+  if (!Number.isFinite(diff)) return '—'
   const sign = diff > 0 ? '+' : ''
   if (unit === 'points') return `${sign}${diff.toFixed(1)}`
   if (unit === 'hours') return `${sign}${diff.toFixed(1)}h`

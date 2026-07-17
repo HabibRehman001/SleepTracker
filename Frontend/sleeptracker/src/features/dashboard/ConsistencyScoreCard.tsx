@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { useDashboardStats } from '@/features/dashboard/useDashboardStats'
+import { useSleepEntries } from '@/features/sleep-entry'
 import { cn } from '@/lib/utils'
 
 export type ConsistencyBand = 'high' | 'moderate' | 'low'
@@ -114,7 +115,7 @@ export function ConsistencyRing({ score, className }: ConsistencyRingProps) {
 }
 
 export type ConsistencyScoreCardProps = {
-  score: number
+  score: number | null
   isFetching?: boolean
   className?: string
 }
@@ -125,8 +126,9 @@ export function ConsistencyScoreCardView({
   isFetching,
   className,
 }: ConsistencyScoreCardProps) {
-  const value = clampConsistencyScore(score)
-  const label = consistencyLabel(value)
+  const empty = score == null || !Number.isFinite(score)
+  const value = empty ? 0 : clampConsistencyScore(score)
+  const label = empty ? 'Need ≥2 nights' : consistencyLabel(value)
 
   return (
     <React.Fragment>
@@ -143,7 +145,16 @@ export function ConsistencyScoreCardView({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-2 pt-(--card-spacing)">
-          <ConsistencyRing score={value} />
+          {empty ? (
+            <p
+              className="text-muted-foreground py-8 text-sm"
+              data-testid="consistency-score-empty"
+            >
+              —
+            </p>
+          ) : (
+            <ConsistencyRing score={value} />
+          )}
           <p
             className="text-muted-foreground text-center text-[10px] tabular-nums"
             data-testid="consistency-score-label"
@@ -158,10 +169,15 @@ export function ConsistencyScoreCardView({
 
 /** Dashboard container — reads consistencyScore from stats summary. */
 export function ConsistencyScoreCard() {
-  const { data: stats, isFetching } = useDashboardStats()
-  const score = stats?.consistencyScore ?? 0
+  const { data: stats, isFetching, isLoading } = useDashboardStats()
+  const { data: entries = [], isLoading: entriesLoading } = useSleepEntries()
+  const empty = !entriesLoading && entries.length < 2
+  const score = empty ? null : (stats?.consistencyScore ?? null)
 
   return (
-    <ConsistencyScoreCardView score={score} isFetching={isFetching} />
+    <ConsistencyScoreCardView
+      score={score}
+      isFetching={isFetching || isLoading || entriesLoading}
+    />
   )
 }

@@ -5,6 +5,7 @@ import experimentRoutes from './routes/experiment.routes'
 import analyticsRoutes from './routes/analytics.routes'
 import statsRoutes from './routes/stats.routes'
 import exportRoutes from './routes/export.routes'
+import reportRoutes from './routes/report.routes'
 import { errorHandler, notFound } from './middleware/errorMiddleware'
 
 const app = express()
@@ -32,6 +33,7 @@ app.use('/api/experiments', experimentRoutes)
 app.use('/api/analytics', analyticsRoutes)
 app.use('/api/stats', statsRoutes)
 app.use('/api/export', exportRoutes)
+app.use('/api/reports', reportRoutes)
 
 app.use(notFound)
 app.use(errorHandler)

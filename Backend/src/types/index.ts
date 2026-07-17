@@ -80,21 +80,35 @@ export type SleepEntryWithRelations = {
   } | null
   food: {
     mealBeforeSleep: boolean
+    mealTime?: Date | null
+    mealType?: string | null
     caffeineAmountMg: number | null
+    caffeineLastConsumed?: Date | null
   } | null
   exercise: {
     exercise: boolean
+    exerciseType?: string | null
     duration: number | null
+    workoutTime?: Date | null
   } | null
   environment: {
+    roomTemp: number | null
+    fanOn?: boolean | null
+    acOn?: boolean | null
+    blackoutCurtains?: boolean | null
+    eyeMask?: boolean | null
+    whiteNoise?: boolean | null
     phoneUsedBeforeSleep: boolean | null
     minutesPhoneBeforeSleep: number | null
-    roomTemp: number | null
     sunlightSeenBeforeSleep?: boolean | null
+    birdsHeard?: boolean | null
+    fajrHeard?: boolean | null
+    screenBrightness?: number | null
   } | null
   health: {
     weight: number | null
     restingHeartRate: number | null
+    bloodPressure?: string | null
   } | null
 }
 

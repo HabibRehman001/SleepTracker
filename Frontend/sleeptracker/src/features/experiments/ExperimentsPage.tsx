@@ -1,6 +1,7 @@
 import * as React from 'react'
-import { toast } from 'sonner'
 
+import { EmptyState } from '@/components/ui/EmptyState'
+import { SleepTrackerLoader } from '@/components/ui/Loader'
 import { ExperimentForm } from '@/features/experiments/ExperimentForm'
 import { ExperimentListCard } from '@/features/experiments/ExperimentListCard'
 import {
@@ -9,7 +10,7 @@ import {
 } from '@/features/experiments/useExperiments'
 
 /**
- * Step 101 — Experiments list: create form + card grid (name, dates, quality %).
+ * Step 101 — Experiments list; Step 109 — loader + empty state.
  */
 export function ExperimentsPage() {
   const { data: experiments = [], isLoading } = useExperiments()
@@ -39,14 +40,18 @@ export function ExperimentsPage() {
           Your experiments
         </h2>
         {isLoading ? (
-          <p className="text-muted-foreground text-sm">Loading…</p>
+          <SleepTrackerLoader
+            fullScreen={false}
+            size="sm"
+            label="Loading experiments…"
+          />
         ) : experiments.length === 0 ? (
-          <p
-            className="text-muted-foreground text-sm"
+          <EmptyState
+            title="No experiments yet"
+            description="Create an experiment above to compare before vs during."
+            showLogCta={false}
             data-testid="experiments-empty"
-          >
-            No experiments yet.
-          </p>
+          />
         ) : (
           <div
             className="grid gap-3 sm:grid-cols-2"
@@ -58,10 +63,8 @@ export function ExperimentsPage() {
                 experiment={exp}
                 deletePending={deleteExperiment.isPending}
                 onDelete={(id) => {
-                  deleteExperiment.mutate(id, {
-                    onSuccess: () => toast.success('Experiment deleted'),
-                    onError: () => toast.error('Could not delete'),
-                  })
+                  // Success/error toasts on useDeleteExperiment (Step 110).
+                  deleteExperiment.mutate(id)
                 }}
               />
             ))}

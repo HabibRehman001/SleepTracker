@@ -133,3 +133,266 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+/* ==========================================================================
+   SleepTrackerLoader.css (Step 109)
+   Theme: near-black navy backdrop, dark blue midtones, light-blue glow.
+   Signature element: a crescent moon that breathes with a soft glow while
+   three "Z"s drift up from it — a sleep cue instead of a generic spinner.
+   ========================================================================== */
+
+.stl-root {
+  --stl-black: #020308;
+  --stl-navy-deep: #0a1128;
+  --stl-navy: #13224a;
+  --stl-blue: #2f5fb3;
+  --stl-blue-light: #8ecdf7;
+  --stl-blue-pale: #d7ecfd;
+  --stl-text: #a9c6e8;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  box-sizing: border-box;
+}
+
+.stl-root * {
+  box-sizing: border-box;
+}
+
+.stl-size-sm {
+  --stl-size: 56px;
+}
+.stl-size-md {
+  --stl-size: 88px;
+}
+.stl-size-lg {
+  --stl-size: 132px;
+}
+
+.stl-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: radial-gradient(
+    ellipse at 50% 45%,
+    var(--stl-navy-deep) 0%,
+    var(--stl-black) 78%
+  );
+  padding: 2rem;
+}
+
+.stl-inline {
+  position: relative;
+  padding: 2rem;
+  background: transparent;
+}
+
+.stl-scene {
+  position: relative;
+  width: var(--stl-size);
+  height: var(--stl-size);
+}
+
+.stl-glow {
+  position: absolute;
+  inset: -22%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    var(--stl-blue) 0%,
+    rgba(47, 95, 179, 0) 68%
+  );
+  filter: blur(calc(var(--stl-size) * 0.14));
+  opacity: 0.6;
+  animation: stl-pulse-glow 3.2s ease-in-out infinite;
+}
+
+.stl-moon-svg {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 0 calc(var(--stl-size) * 0.05) var(--stl-blue-light));
+}
+
+.stl-stop-1 {
+  stop-color: var(--stl-blue-pale);
+}
+.stl-stop-2 {
+  stop-color: var(--stl-blue-light);
+}
+.stl-stop-3 {
+  stop-color: var(--stl-navy);
+}
+
+.stl-star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--stl-blue-pale);
+  box-shadow: 0 0 6px 1px var(--stl-blue-light);
+  animation: stl-twinkle 2.6s ease-in-out infinite;
+}
+
+.stl-star1 {
+  top: 6%;
+  left: 4%;
+  animation-delay: 0s;
+}
+.stl-star2 {
+  top: 22%;
+  left: 16%;
+  width: 2px;
+  height: 2px;
+  animation-delay: 0.5s;
+}
+.stl-star3 {
+  top: 2%;
+  left: 34%;
+  width: 2px;
+  height: 2px;
+  animation-delay: 1.1s;
+}
+.stl-star4 {
+  top: 78%;
+  left: 8%;
+  animation-delay: 1.6s;
+}
+.stl-star5 {
+  top: 88%;
+  left: 26%;
+  width: 2px;
+  height: 2px;
+  animation-delay: 0.9s;
+}
+
+.stl-z {
+  position: absolute;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--stl-blue-pale);
+  text-shadow:
+    0 0 8px var(--stl-blue-light),
+    0 0 2px var(--stl-blue-pale);
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  animation: stl-drift-fade 3.6s ease-in-out infinite;
+}
+
+.stl-z1 {
+  top: 20%;
+  left: 58%;
+  font-size: calc(var(--stl-size) * 0.15);
+  --tx: 12px;
+  --ty: -30px;
+  animation-delay: 0s;
+}
+.stl-z2 {
+  top: 10%;
+  left: 70%;
+  font-size: calc(var(--stl-size) * 0.2);
+  --tx: 18px;
+  --ty: -42px;
+  animation-delay: 0.9s;
+}
+.stl-z3 {
+  top: -2%;
+  left: 84%;
+  font-size: calc(var(--stl-size) * 0.26);
+  --tx: 24px;
+  --ty: -54px;
+  animation-delay: 1.8s;
+}
+
+.stl-label {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--stl-text);
+  text-align: center;
+}
+
+.stl-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes stl-pulse-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes stl-twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes stl-drift-fade {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(0, 0) scale(0.85);
+  }
+  70% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--tx, 16px), var(--ty, -40px)) scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stl-glow {
+    animation: stl-fade-only 3.2s ease-in-out infinite;
+  }
+  .stl-star {
+    animation: stl-fade-only 2.6s ease-in-out infinite;
+    transform: none;
+  }
+  .stl-z {
+    animation: stl-fade-only 3.6s ease-in-out infinite;
+  }
+}
+
+@keyframes stl-fade-only {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}

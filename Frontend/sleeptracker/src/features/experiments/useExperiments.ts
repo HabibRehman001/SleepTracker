@@ -1,5 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api-client'
+import {
+  toastMutationError,
+  toastMutationSuccess,
+} from '@/lib/mutationToast'
 import { queryClient } from '@/lib/queryClient'
 import type { Experiment } from '@/types/sleepEntry'
 
@@ -67,7 +71,11 @@ export const useCreateExperiment = () =>
     mutationFn: (body: CreateExperimentInput) =>
       api.post<Experiment>('/experiments', body),
     onSuccess: () => {
+      toastMutationSuccess('Experiment created')
       void queryClient.invalidateQueries({ queryKey: experimentsQueryKey })
+    },
+    onError: (err) => {
+      toastMutationError(err, 'Could not create experiment')
     },
   })
 
@@ -75,6 +83,10 @@ export const useDeleteExperiment = () =>
   useMutation({
     mutationFn: (id: string) => api.delete(`/experiments/${id}`),
     onSuccess: () => {
+      toastMutationSuccess('Experiment deleted')
       void queryClient.invalidateQueries({ queryKey: experimentsQueryKey })
+    },
+    onError: (err) => {
+      toastMutationError(err, 'Could not delete experiment')
     },
   })

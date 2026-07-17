@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
-import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -77,13 +76,10 @@ export function QuickLogDialog() {
         health: null,
       },
       {
+        // Toast success/error from useSaveSleepEntry (Step 110).
         onSuccess: () => {
-          toast.success('Saved')
           setOpen(false)
           reset(quickLogDefaults)
-        },
-        onError: (err) => {
-          toast.error(err instanceof Error ? err.message : 'Save failed')
         },
       }
     )

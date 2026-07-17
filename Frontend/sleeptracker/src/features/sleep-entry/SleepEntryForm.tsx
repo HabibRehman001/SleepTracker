@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, FormProvider, useForm } from 'react-hook-form'
-import { toast } from 'sonner'
 import { useRef, type ComponentProps } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -186,17 +185,8 @@ export function SleepEntryForm() {
 
   const onValid = (data: SleepEntryFormValues) => {
     networkCalls.current += 1
-    saveMutation.mutate(
-      { ...toApiPayload(selectedDate, data) },
-      {
-        onSuccess: () => {
-          toast.success('Saved')
-        },
-        onError: (err) => {
-          toast.error(err instanceof Error ? err.message : 'Save failed')
-        },
-      }
-    )
+    // Success/error toasts live on useSaveSleepEntry (Step 110).
+    saveMutation.mutate({ ...toApiPayload(selectedDate, data) })
   }
 
   const submitWithInvalidQuality = () => {

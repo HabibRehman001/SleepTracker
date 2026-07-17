@@ -1,6 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { dashboardStatsQueryKey } from '@/features/dashboard/useDashboardStats'
 import { api } from '@/lib/api-client'
+import {
+  toastMutationError,
+  toastMutationSuccess,
+} from '@/lib/mutationToast'
 import { queryClient } from '@/lib/queryClient'
 import type { SleepEntry, SleepEntryWrite } from '@/types/sleepEntry'
 
@@ -22,8 +26,11 @@ export const useSaveSleepEntry = () =>
     mutationFn: ({ date, ...body }: SaveSleepEntryInput) =>
       api.put<SleepEntry>(`/sleep-entries/${date}`, body),
     onSuccess: () => {
-      // List + dashboard stats refresh — no manual refetch needed
+      toastMutationSuccess('Saved')
       void queryClient.invalidateQueries({ queryKey: sleepEntriesQueryKey })
       void queryClient.invalidateQueries({ queryKey: dashboardStatsQueryKey })
+    },
+    onError: (err) => {
+      toastMutationError(err, 'Could not save sleep entry')
     },
   })
