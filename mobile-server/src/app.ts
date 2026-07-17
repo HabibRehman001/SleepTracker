@@ -8,6 +8,7 @@ import { lanOnlyMiddleware } from './middleware/lanOnly'
 import sessionRoutes from './routes/session.routes'
 import scheduleRoutes from './routes/schedule.routes'
 import statsRoutes from './routes/stats.routes'
+import homeLocationRoutes from './routes/homeLocation.routes'
 
 const corsOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:8081'
 
@@ -52,6 +53,10 @@ app.use('/api/schedule', scheduleRoutes)
 /** Step 129 — monthly stats aggregation */
 app.use('/stats', statsRoutes)
 app.use('/api/stats', statsRoutes)
+
+/** Step 137 — home lat/lng for geofencing (persisted in Mongo) */
+app.use('/home-location', homeLocationRoutes)
+app.use('/api/home-location', homeLocationRoutes)
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ message: 'Not found' })

@@ -11,6 +11,7 @@ export {
 } from './baselineStore'
 export { useLockStateStore } from './lockStateStore'
 export { useAppStore } from './useAppStore'
+export { useHomeLocationStore } from './homeLocationStore'
 
 /** @deprecated Prefer useLockStateStore (Step 123). */
 export {

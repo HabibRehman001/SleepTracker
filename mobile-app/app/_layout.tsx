@@ -25,7 +25,35 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{ title: 'Sleep Lock' }} />
         <Stack.Screen
           name="onboarding"
-          options={{ title: 'Onboarding', presentation: 'card' }}
+          options={{ headerShown: false, animation: 'fade' }}
+        />
+        <Stack.Screen
+          name="location-permission"
+          options={{ headerShown: false, animation: 'fade' }}
+        />
+        <Stack.Screen
+          name="motion-permission"
+          options={{ headerShown: false, animation: 'fade' }}
+        />
+        <Stack.Screen
+          name="notification-permission"
+          options={{ headerShown: false, animation: 'fade' }}
+        />
+        <Stack.Screen
+          name="set-home"
+          options={{ headerShown: false, animation: 'fade' }}
+        />
+        <Stack.Screen
+          name="device-owner-setup"
+          options={{ headerShown: false, animation: 'fade' }}
+        />
+        <Stack.Screen
+          name="family-controls-setup"
+          options={{ headerShown: false, animation: 'fade' }}
+        />
+        <Stack.Screen
+          name="permissions-status"
+          options={{ title: 'Permissions', headerBackTitle: 'Back' }}
         />
       </Stack>
     </QueryClientProvider>

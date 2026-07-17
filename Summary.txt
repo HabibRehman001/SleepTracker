@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-18 (after Step 130 — month comparison)
+Last updated: 2026-07-18 (after Step 140 — permissions status)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -37,8 +37,9 @@ SleepTracker/
 ├── mobile-app/                          # Phase 2 Expo Sleep Lock (was sleep-lock-app)
 │   ├── app/                             # Expo Router screens (Step 118–119)
 │   │   ├── _layout.tsx
-│   │   ├── index.tsx                    # Home + Link to /onboarding
-│   │   └── onboarding.tsx               # Onboarding → router.replace('/')
+│   │   ├── index.tsx                    # Home; Redirect → onboarding if needed
+│   │   └── onboarding.tsx               # Swipeable welcome (Step 133)
+│   ├── components/onboarding/           # Pager + slides copy
 │   ├── native/                          # Platform modules — SleepLockModule
 │   ├── services/                        # Orchestration (lockService)
 │   ├── store/                           # Zustand: schedule / baseline / lockState
@@ -803,6 +804,52 @@ GET /stats/comparison — { thisMonth, lastMonth, improved, deltas }.
 UTC calendar months; optional ?month=yyyy-MM. improved = majority of
 duration / consistency / steps deltas positive (higher-is-better).
 
+----- 6.91 LAN-only API (Step 131) -----
+No auth (single-user / no-cloud). HOST=0.0.0.0 for Wi-Fi phone access;
+lanOnly middleware → 403 for public client IPs. Do not port-forward.
+Escape: ALLOW_PUBLIC=true only if deliberately exposing further.
+
+----- 6.93 Welcome / onboarding flow (Step 133) -----
+Swipeable 4-screen intro (ScrollView paging): learn 2 days → set & lock.
+components/onboarding/*; first launch Redirect → /onboarding; header hidden.
+Get started seeds baseline (2 nights) + draft schedule.
+
+----- 6.94 Location permissions (Step 134) -----
+Two-step expo-location: foreground then background (required on Android/iOS).
+/location-permission; deny background → explainer ("why we need this") +
+Linking.openSettings deep-link — not a silent failure.
+
+----- 6.95 Motion / activity permissions (Step 135) -----
+Accelerometer.requestPermissionsAsync then Pedometer (steps):
+Android ACTIVITY_RECOGNITION + iOS Core Motion (NSMotionUsageDescription).
+/motion-permission after location; expo-sensors config plugin in app.json.
+
+----- 6.96 Notification permissions (Step 136) -----
+expo-notifications requestPermissionsAsync for “phone will lock in 30 minutes”.
+/notification-permission after motion; POST_NOTIFICATIONS on Android;
+scheduleLockWarningNotification helper ready for lock windows.
+
+----- 6.97 Set home location (Step 137) -----
+/set-home map picker (react-native-maps; web tap fallback).
+PUT/GET /home-location on mobile-server — lat/lng in Mongo so reinstall
+keeps the pin. App hydrates from backend on launch.
+
+----- 6.98 Android Device Owner setup (Step 138) -----
+One-time ADB (cannot automate in-app). /device-owner-setup with copyable:
+  adb shell dpm set-device-owner com.sleeptracker.sleeplock/.DeviceAdminReceiver
+SleepLockModule.isDeviceOwner(); home shows "✅ Full lock enabled" when true.
+Stubs: native/android-stubs/DeviceAdminReceiver.kt + device_admin.xml.
+
+----- 6.99 iOS Family Controls entitlement (Step 139) -----
+/family-controls-setup checklist + Apple request URL (cannot automate).
+Until approved: lockCapability = notification-only (alerts only, no app block).
+hasFamilyControlsEntitlement(); soft lock when entitlement is in the build.
+
+----- 6.100 Permissions status screen (Step 140) -----
+/permissions-status — Settings-style checklist (✅/⚠️/❌): Location Always,
+Motion, Notifications, Device Owner (Android), Family Controls (iOS).
+Tap non-OK rows to jump to the fix flow; pull to refresh.
+
 ================================================================================
 7. API REFERENCE (current)
 ================================================================================
@@ -821,6 +868,9 @@ GET  /schedule                 get current schedule (404 if none)
 GET  /stats/monthly?limit=12   monthly agg: duration, bed/wake, consistency
 GET  /stats/comparison         this vs last month + improved + deltas
      (also /api/stats/*)
+PUT  /home-location            upsert home lat/lng (geofence pin)
+GET  /home-location            persisted home (404 if unset)
+     (also /api/home-location)
 
 Phase 1 Backend (:4000):
 GET  /api/sleep-entries              all sleep entries + relations
@@ -901,6 +951,51 @@ Tests (Backend):
 ================================================================================
 11. CHANGE LOG
 ================================================================================
+
+[2026-07-18] Step 140 — Permissions status checklist screen
+- /permissions-status: Location Always / Motion / Notifications / Device Owner
+  / Family Controls with ✅⚠️❌; Settings-like grouped list.
+- TESTED: npm run test:permissions-status; tsc --noEmit.
+
+[2026-07-18] Step 139 — iOS Screen Time / Family Controls entitlement checklist
+- /family-controls-setup: Apple request URL + checklist; notification-only fallback.
+- hasFamilyControlsEntitlement + lockCapability (full/soft/notification-only).
+- TESTED: npm run test:family-controls-setup; test:native-lock; tsc --noEmit.
+
+[2026-07-18] Step 138 — Android Device Owner setup screen
+- /device-owner-setup: copyable ADB dpm set-device-owner; isDeviceOwner() on module.
+- Home badge "✅ Full lock enabled" when Device Owner; Kotlin stubs for prebuild.
+- TESTED: npm run test:device-owner-setup; test:native-lock; tsc --noEmit.
+
+[2026-07-18] Step 137 — Set home location (map + backend persist)
+- react-native-maps picker (/set-home); PUT/GET /home-location in Mongo.
+- Hydrate on launch so reinstall keeps lat/lng; not local-only state.
+- TESTED: curl PUT+GET; npm run test:home-location; test:set-home; tsc.
+
+[2026-07-18] Step 136 — Notification permissions (lock-in-30-min alert)
+- requestNotificationPermissions + /notification-permission screen.
+- LOCK_WARNING_MINUTES=30; scheduleLockWarningNotification helper; POST_NOTIFICATIONS.
+- TESTED: npm run test:notification-permissions; tsc --noEmit.
+
+[2026-07-18] Step 135 — Motion / activity recognition permissions
+- Accelerometer + Pedometer.requestPermissionsAsync (ACTIVITY_RECOGNITION /
+  Core Motion); /motion-permission screen; app.json sensors plugin + perms.
+- TESTED: npm run test:motion-permissions; tsc --noEmit.
+
+[2026-07-18] Step 134 — Request location permissions (two-step)
+- requestForeground then requestBackground; /location-permission screen.
+- Background deny → why explainer + Open Settings (Linking.openSettings).
+- TESTED: npm run test:location-permissions; test:router; tsc --noEmit.
+
+[2026-07-18] Step 133 — Welcome / onboarding swipe flow
+- 4 swipeable screens: learn 2 days → set & lock schedule.
+- OnboardingPager + dots animation; first launch redirects to /onboarding.
+- TESTED: npm run test:onboarding; test:router; tsc --noEmit.
+
+[2026-07-18] Step 131 — Secure API for LAN-only use
+- HOST bind (default 0.0.0.0) + startup LAN URLs for phone Wi-Fi.
+- lanOnly middleware rejects public remote IPs (403); ALLOW_PUBLIC escape.
+- TESTED: curl localhost + LAN IP health 200; npm run test:lan-only; tsc.
 
 [2026-07-18] Step 130 — Current vs last month comparison endpoint
 - GET /stats/comparison → thisMonth, lastMonth, improved, deltas.

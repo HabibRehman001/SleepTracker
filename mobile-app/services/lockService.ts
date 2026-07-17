@@ -1,5 +1,8 @@
 import {
   getSleepLockModule,
+  resolveDefaultPlatform,
+  classifyLockCapability,
+  type LockCapability,
   type SleepLockModule,
   type SleepLockPlatform,
 } from '../native'
@@ -9,8 +12,8 @@ import {
  */
 let module: SleepLockModule = getSleepLockModule('mock')
 
-export function configureLockService(platform: SleepLockPlatform = 'mock'): void {
-  module = getSleepLockModule(platform)
+export function configureLockService(platform?: SleepLockPlatform): void {
+  module = getSleepLockModule(platform ?? resolveDefaultPlatform())
 }
 
 export async function enableLock(): Promise<void> {
@@ -24,3 +27,27 @@ export async function disableLock(): Promise<void> {
 export async function isLocked(): Promise<boolean> {
   return module.isLocked()
 }
+
+/** Android Device Owner status (Step 138). Always false on iOS / plain mock. */
+export async function isDeviceOwner(): Promise<boolean> {
+  return module.isDeviceOwner()
+}
+
+/** iOS Family Controls entitlement present in this build (Step 139). */
+export async function hasFamilyControlsEntitlement(): Promise<boolean> {
+  return module.hasFamilyControlsEntitlement()
+}
+
+/**
+ * full = Android Device Owner; soft = iOS Family Controls;
+ * notification-only = fallback until platform entitlement is ready.
+ */
+export async function getLockCapability(): Promise<LockCapability> {
+  const [owner, family] = await Promise.all([
+    module.isDeviceOwner(),
+    module.hasFamilyControlsEntitlement(),
+  ])
+  return classifyLockCapability(owner, family)
+}
+
+export type { LockCapability }

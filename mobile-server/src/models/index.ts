@@ -10,3 +10,8 @@ export {
   scheduleSchema,
   type ScheduleDoc,
 } from './Schedule'
+export {
+  HomeLocation,
+  homeLocationSchema,
+  type HomeLocationDoc,
+} from './HomeLocation'

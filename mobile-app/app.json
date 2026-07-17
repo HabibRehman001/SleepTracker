@@ -19,6 +19,12 @@
           "isAndroidBackgroundLocationEnabled": true
         }
       ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Sleep Lock uses motion and step data to learn your activity baseline during setup."
+        }
+      ],
       "expo-background-fetch",
       [
         "expo-notifications",
@@ -34,7 +40,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.sleeptracker.sleeplock",
       "infoPlist": {
-        "UIBackgroundModes": ["location", "fetch", "processing"]
+        "UIBackgroundModes": ["location", "fetch", "processing"],
+        "NSMotionUsageDescription": "Sleep Lock uses motion and step data to learn your activity baseline during setup."
       }
     },
     "android": {
@@ -43,6 +50,8 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
+        "ACTIVITY_RECOGNITION",
+        "POST_NOTIFICATIONS",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
         "RECEIVE_BOOT_COMPLETED",

@@ -1,34 +1,122 @@
-import { Link } from 'expo-router'
+import { Link, Redirect } from 'expo-router'
 import { useEffect } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 
+import {
+  FULL_LOCK_ENABLED_LABEL,
+  NOTIFICATION_ONLY_MODE_LABEL,
+  SOFT_LOCK_ENABLED_LABEL,
+  classifyLockCapability,
+} from '../native'
 import * as lockService from '../services/lockService'
+import { useAppStore } from '../store/useAppStore'
+import { useHomeLocationStore } from '../store/homeLocationStore'
 import { useLockStateStore } from '../store/lockStateStore'
 
 /**
  * Home — lock UI driven by useLockStateStore (Step 123).
+ * Setup: … → Device Owner → Family Controls (Steps 133–139).
  */
 export default function HomeScreen() {
+  const onboardingDone = useAppStore((s) => s.onboardingDone)
+  const locationSetupDone = useAppStore((s) => s.locationSetupDone)
+  const motionSetupDone = useAppStore((s) => s.motionSetupDone)
+  const notificationSetupDone = useAppStore((s) => s.notificationSetupDone)
+  const homeSetupDone = useAppStore((s) => s.homeSetupDone)
+  const setHomeSetupDone = useAppStore((s) => s.setHomeSetupDone)
+  const deviceOwnerSetupDone = useAppStore((s) => s.deviceOwnerSetupDone)
+  const familyControlsSetupDone = useAppStore((s) => s.familyControlsSetupDone)
+
+  const homeHydrated = useHomeLocationStore((s) => s.hydrated)
+  const homeLat = useHomeLocationStore((s) => s.latitude)
+  const homeLng = useHomeLocationStore((s) => s.longitude)
+  const hydrateFromBackend = useHomeLocationStore((s) => s.hydrateFromBackend)
+
   const isLocked = useLockStateStore((s) => s.isLocked)
+  const lockCapability = useLockStateStore((s) => s.lockCapability)
   const busy = useLockStateStore((s) => s.busy)
   const ready = useLockStateStore((s) => s.ready)
   const setLocked = useLockStateStore((s) => s.setLocked)
+  const setDeviceOwner = useLockStateStore((s) => s.setDeviceOwner)
+  const setFamilyControls = useLockStateStore((s) => s.setFamilyControls)
+  const setLockCapability = useLockStateStore((s) => s.setLockCapability)
   const setBusy = useLockStateStore((s) => s.setBusy)
   const setReady = useLockStateStore((s) => s.setReady)
   const setLastError = useLockStateStore((s) => s.setLastError)
 
   useEffect(() => {
-    void lockService
-      .isLocked()
-      .then((value) => {
-        setLocked(value)
+    lockService.configureLockService()
+    void Promise.all([
+      lockService.isLocked(),
+      lockService.isDeviceOwner(),
+      lockService.hasFamilyControlsEntitlement(),
+    ])
+      .then(([locked, owner, family]) => {
+        setLocked(locked)
+        setDeviceOwner(owner)
+        setFamilyControls(family)
+        setLockCapability(classifyLockCapability(owner, family))
         setReady(true)
       })
       .catch((err: unknown) => {
         setLastError(err instanceof Error ? err.message : 'Failed to read lock')
         setReady(true)
       })
-  }, [setLocked, setReady, setLastError])
+  }, [
+    setLocked,
+    setDeviceOwner,
+    setFamilyControls,
+    setLockCapability,
+    setReady,
+    setLastError,
+  ])
+
+  useEffect(() => {
+    if (!notificationSetupDone || homeSetupDone) return
+    void hydrateFromBackend().then((home) => {
+      if (home) setHomeSetupDone(true)
+    })
+  }, [
+    notificationSetupDone,
+    homeSetupDone,
+    hydrateFromBackend,
+    setHomeSetupDone,
+  ])
+
+  if (!onboardingDone) {
+    return <Redirect href="/onboarding" />
+  }
+
+  if (!locationSetupDone) {
+    return <Redirect href="/location-permission" />
+  }
+
+  if (!motionSetupDone) {
+    return <Redirect href="/motion-permission" />
+  }
+
+  if (!notificationSetupDone) {
+    return <Redirect href="/notification-permission" />
+  }
+
+  if (!homeSetupDone) {
+    if (!homeHydrated) {
+      return (
+        <View className="bg-background flex-1 items-center justify-center">
+          <ActivityIndicator color="#fafafa" />
+        </View>
+      )
+    }
+    return <Redirect href="/set-home" />
+  }
+
+  if (!deviceOwnerSetupDone) {
+    return <Redirect href="/device-owner-setup" />
+  }
+
+  if (!familyControlsSetupDone) {
+    return <Redirect href="/family-controls-setup" />
+  }
 
   const toggle = async () => {
     setBusy(true)
@@ -47,6 +135,40 @@ export default function HomeScreen() {
     }
   }
 
+  const capabilityBadge =
+    lockCapability === 'full' ? (
+      <View
+        className="bg-card border border-border rounded-lg px-4 py-3 mb-4 w-full max-w-sm items-center"
+        testID="full-lock-enabled-badge"
+      >
+        <Text className="text-foreground text-base font-semibold">
+          {FULL_LOCK_ENABLED_LABEL}
+        </Text>
+      </View>
+    ) : lockCapability === 'soft' ? (
+      <View
+        className="bg-card border border-border rounded-lg px-4 py-3 mb-4 w-full max-w-sm items-center"
+        testID="soft-lock-enabled-badge"
+      >
+        <Text className="text-foreground text-base font-semibold">
+          {SOFT_LOCK_ENABLED_LABEL}
+        </Text>
+      </View>
+    ) : (
+      <View
+        className="bg-card border border-border rounded-lg px-4 py-3 mb-4 w-full max-w-sm"
+        testID="notification-only-mode-badge"
+      >
+        <Text className="text-foreground text-base font-semibold text-center mb-1">
+          {NOTIFICATION_ONLY_MODE_LABEL}
+        </Text>
+        <Text className="text-muted-foreground text-center text-xs leading-5">
+          Lock windows send alerts only until Family Controls (iOS) or Device
+          Owner (Android) is ready.
+        </Text>
+      </View>
+    )
+
   return (
     <View
       className="bg-background flex-1 items-center justify-center px-6"
@@ -55,9 +177,20 @@ export default function HomeScreen() {
       <Text className="text-foreground text-3xl font-semibold mb-3">
         Sleep Lock
       </Text>
-      <Text className="text-muted-foreground text-center text-[15px] leading-6 mb-6">
+      <Text className="text-muted-foreground text-center text-[15px] leading-6 mb-4">
         Same dark tokens as the web app — one product across analysis + lock.
       </Text>
+
+      {capabilityBadge}
+
+      {homeLat != null && homeLng != null ? (
+        <Text
+          className="text-muted-foreground font-mono text-xs mb-4"
+          testID="home-coords-badge"
+        >
+          Home {homeLat.toFixed(4)}, {homeLng.toFixed(4)}
+        </Text>
+      ) : null}
       <View className="bg-card border border-border rounded-lg px-4 py-3 mb-4 w-full max-w-sm">
         <Text
           className="text-card-foreground text-lg font-semibold tracking-wide text-center"
@@ -76,10 +209,38 @@ export default function HomeScreen() {
           {isLocked ? 'Disable lock' : 'Enable lock'}
         </Text>
       </Pressable>
+      <Link href="/permissions-status" asChild>
+        <Pressable className="px-4 py-2.5" testID="open-permissions-status">
+          <Text className="text-sidebar-primary text-[15px] font-medium">
+            Permissions status
+          </Text>
+        </Pressable>
+      </Link>
+      <Link href="/device-owner-setup" asChild>
+        <Pressable className="px-4 py-2.5" testID="open-device-owner-setup">
+          <Text className="text-sidebar-primary text-[15px] font-medium">
+            Device Owner setup
+          </Text>
+        </Pressable>
+      </Link>
+      <Link href="/family-controls-setup" asChild>
+        <Pressable className="px-4 py-2.5" testID="open-family-controls-setup">
+          <Text className="text-sidebar-primary text-[15px] font-medium">
+            Family Controls setup
+          </Text>
+        </Pressable>
+      </Link>
       <Link href="/onboarding" asChild>
         <Pressable className="px-4 py-2.5" testID="open-onboarding">
           <Text className="text-sidebar-primary text-[15px] font-medium">
-            Open onboarding
+            Replay onboarding
+          </Text>
+        </Pressable>
+      </Link>
+      <Link href="/set-home" asChild>
+        <Pressable className="px-4 py-2" testID="open-set-home">
+          <Text className="text-muted-foreground text-[14px]">
+            Change home location
           </Text>
         </Pressable>
       </Link>

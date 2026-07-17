@@ -29,8 +29,15 @@ assert.match(home, /testID=["']open-onboarding["']/)
 assert.match(home, /testID=["']home-screen["']/)
 
 assert.match(onboarding, /from ['"]expo-router['"]/)
-assert.match(onboarding, /router\.(replace|push)\(['"]\/['"]\)|href=["']\/["']/)
-assert.match(onboarding, /testID=["']onboarding-screen["']/)
-assert.match(onboarding, /testID=["']onboarding-done["']/)
+assert.match(
+  onboarding,
+  /router\.(replace|push)\(['"]\/(location-permission)?['"]\)|href=["']\/["']/
+)
+assert.match(onboarding, /OnboardingPager|testID=["']onboarding-screen["']/)
+assert.match(
+  readFileSync(join(root, 'components/onboarding/OnboardingPager.tsx'), 'utf8'),
+  /onboarding-done/
+)
+assert.match(layout, /location-permission/)
 
 console.log('Expo Router navigation contract OK — index ↔ onboarding')
