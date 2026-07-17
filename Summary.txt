@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-18 (after Step 123 — Zustand stores)
+Last updated: 2026-07-18 (after Step 130 — month comparison)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -49,7 +49,9 @@ SleepTracker/
 │   ├── package.json                     # main: expo-router/entry
 │   └── README.md
 │
-├── Backend/
+├── mobile-server/                       # Phase 2 Express + MongoDB (:4001, Step 125)
+│
+├── Backend/                             # Phase 1 Prisma/SQLite (:4000)
 │   ├── .env                             # PORT, DATABASE_URL, secrets (gitignored)
 │   ├── .gitignore
 │   ├── package.json
@@ -769,13 +771,58 @@ store/baselineStore.ts — onboarding auto-detected stats
 store/lockStateStore.ts — isLocked/busy UI (home uses this)
 Test: npm run test:stores
 
+----- 6.85 mobile-server scaffold (Step 125) -----
+Express + mongoose + cors + dotenv; TypeScript; PORT=4001.
+Separate from Phase 1 Backend (SQLite). Health: GET /api/health.
+Mongo via local mongod or Docker mongo:7 on :27017.
+Test: curl http://localhost:4001/api/health → { ok: true }.
+
+----- 6.86 Mongoose schemas (Step 126) -----
+ActivitySession: date, bedTime, wakeTime, source enum
+  (baseline-auto | locked-schedule), stepsCount, homeArrivalTime.
+Schedule: sleepTime/wakeTime HH:MM strings, lockedAt (immutable after Step 150).
+Models: mobile-server/src/models/{ActivitySession,Schedule}.ts
+
+----- 6.87 Activity session API (Step 127) -----
+POST /sessions (also /api/sessions) — create ActivitySession
+GET /sessions?range=30d — list (default 30d; also 7d/90d/all)
+RN pushes each night's detected/enforced sleep session here.
+
+----- 6.88 Schedule API (Step 128) -----
+POST /schedule — create once (sets lockedAt); second POST → 409 Conflict.
+GET /schedule — current schedule (404 if none).
+Also /api/schedule. Immutability hardened further in Step 150.
+
+----- 6.89 Monthly stats aggregation (Step 129) -----
+GET /stats/monthly?limit=12 — Mongo $group by yyyy-MM on ActivitySession.
+Returns avgDuration, avgBedTime/avgWakeTime (circular mean), consistencyScore,
+avgStepsCount. Clock math reimplemented (Phase 1 concepts, not a shared package).
+
+----- 6.90 Month comparison (Step 130) -----
+GET /stats/comparison — { thisMonth, lastMonth, improved, deltas }.
+UTC calendar months; optional ?month=yyyy-MM. improved = majority of
+duration / consistency / steps deltas positive (higher-is-better).
+
 ================================================================================
 7. API REFERENCE (current)
 ================================================================================
 Base: http://localhost:4000
 
 GET  /                         health JSON
-GET  /api/health               health JSON
+GET  /api/health               health JSON (mobile-server also :4001)
+
+Mobile-server (Phase 2, :4001):
+POST /sessions                 create ActivitySession (JSON body)
+GET  /sessions?range=30d       list sessions (7d|30d|90d|all; default 30d)
+     (also mounted at /api/sessions)
+POST /schedule                 create schedule once (409 if exists)
+GET  /schedule                 get current schedule (404 if none)
+     (also mounted at /api/schedule)
+GET  /stats/monthly?limit=12   monthly agg: duration, bed/wake, consistency
+GET  /stats/comparison         this vs last month + improved + deltas
+     (also /api/stats/*)
+
+Phase 1 Backend (:4000):
 GET  /api/sleep-entries              all sleep entries + relations
 GET  /api/sleep-entries/:date        one entry by date (YYYY-MM-DD)
 PUT  /api/sleep-entries/:date        upsert that day (JSON body)
@@ -854,6 +901,34 @@ Tests (Backend):
 ================================================================================
 11. CHANGE LOG
 ================================================================================
+
+[2026-07-18] Step 130 — Current vs last month comparison endpoint
+- GET /stats/comparison → thisMonth, lastMonth, improved, deltas.
+- Majority vote on duration/consistency/steps (higher-is-better).
+- TESTED: curl shape + improved; npm run test:comparison; tsc.
+
+[2026-07-18] Step 129 — Monthly stats aggregation endpoint
+- GET /stats/monthly — Mongo group by month + circular bed/wake + consistency.
+- clockMath.ts reimplements Phase 1 concepts for ActivitySession shape.
+- TESTED: curl returns 2026-07 bucket with duration/bed/wake/consistency; tsc.
+
+[2026-07-18] Step 128 — Schedule endpoints
+- POST /schedule (once) + GET /schedule; second POST → 409 Conflict.
+- TESTED: curl 201 then 409; GET returns locked schedule; tsc.
+
+[2026-07-18] Step 127 — Activity session CRUD API
+- POST /sessions + GET /sessions?range=30d (alias /api/sessions).
+- TESTED: curl POST 201 → GET range=30d returns persisted session; tsc.
+
+[2026-07-18] Step 126 — Define Mongoose schemas
+- ActivitySession + Schedule models under mobile-server/src/models/.
+- source enum baseline-auto | locked-schedule; schedule lockedAt guard stub.
+- TESTED: npm run test:schemas; tsc --noEmit.
+
+[2026-07-18] Step 125 — Scaffold mobile-server (Express/Mongo)
+- mobile-server/: express, mongoose, cors, dotenv + TypeScript.
+- Listens on :4001; connects to mongodb://127.0.0.1:27017/sleep-lock.
+- TESTED: Docker mongo:7; curl /api/health → ok; tsc --noEmit.
 
 [2026-07-18] Step 124 — Commit scaffolding
 - feat: scaffold Expo RN app with routing, native module boundary, stores
