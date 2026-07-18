@@ -9,8 +9,12 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 const screen = readFileSync(join(root, 'app/set-home.tsx'), 'utf8')
-const picker = readFileSync(
-  join(root, 'components/home/HomeMapPicker.tsx'),
+const pickerNative = readFileSync(
+  join(root, 'components/home/HomeMapPicker.native.tsx'),
+  'utf8'
+)
+const pickerWeb = readFileSync(
+  join(root, 'components/home/HomeMapPicker.web.tsx'),
   'utf8'
 )
 const api = readFileSync(join(root, 'services/homeLocation.ts'), 'utf8')
@@ -25,8 +29,11 @@ const appStore = readFileSync(join(root, 'store/useAppStore.ts'), 'utf8')
 
 assert.ok(pkg.dependencies['react-native-maps'], 'react-native-maps installed')
 assert.ok(existsSync(join(root, 'app/set-home.tsx')))
-assert.match(picker, /react-native-maps/)
-assert.match(picker, /MapView|Marker/)
+assert.ok(existsSync(join(root, 'components/home/HomeMapPicker.native.tsx')))
+assert.ok(existsSync(join(root, 'components/home/HomeMapPicker.web.tsx')))
+assert.match(pickerNative, /react-native-maps/)
+assert.match(pickerNative, /MapView|Marker/)
+assert.doesNotMatch(pickerWeb, /from ['"]react-native-maps['"]/)
 assert.match(screen, /HomeMapPicker/)
 assert.match(screen, /persistToBackend|saveHomeLocation/)
 assert.match(screen, /testID=["']home-save["']/)

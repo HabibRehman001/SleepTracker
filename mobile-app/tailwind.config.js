@@ -10,6 +10,8 @@ module.exports = {
     './store/**/*.{js,jsx,ts,tsx}',
     './theme/**/*.{js,jsx,ts,tsx}',
   ],
+  // NativeWind / css-interop: allow manual scheme; avoids web crash on media mode.
+  darkMode: 'class',
   presets: [require('nativewind/preset')],
   theme: {
     extend: {

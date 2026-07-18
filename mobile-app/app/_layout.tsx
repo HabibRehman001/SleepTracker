@@ -1,11 +1,18 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
+import { StyleSheet } from 'react-native'
 
 import { queryClient } from '../services/queryClient'
 import { darkTokens } from '../theme/tokens'
 
 import '../global.css'
+
+// NativeWind web: must match tailwind `darkMode: 'class'` (avoids media-mode crash).
+;(StyleSheet as unknown as { setFlag?: (k: string, v: string) => void }).setFlag?.(
+  'darkMode',
+  'class'
+)
 
 /**
  * Root layout — dark theme tokens match web-app `.dark` (Step 122).

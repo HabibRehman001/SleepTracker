@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { router } from 'expo-router'
+import { router, type Href } from 'expo-router'
 import * as Location from 'expo-location'
 
 import { HomeMapPicker } from '../components/home/HomeMapPicker'
@@ -69,7 +69,8 @@ export default function SetHomeScreen() {
     try {
       await persistToBackend()
       setHomeSetupDone(true)
-      router.replace('/device-owner-setup')
+      // Cast: .expo typed routes can lag until Metro regenerates them.
+      router.replace('/device-owner-setup' as Href)
     } catch {
       // lastError already set on store
     }
