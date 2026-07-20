@@ -96,9 +96,8 @@ export default function FamilyControlsSetupScreen() {
           Screen Time entitlement
         </Text>
         <Text className="text-muted-foreground text-[15px] leading-6 mb-5">
-          Soft lock on iOS needs Apple’s Family Controls entitlement. That
-          request cannot be automated in the app — submit it, wait for approval,
-          then rebuild. Bundle ID:{' '}
+          Optional on iOS: stronger soft lock via Apple’s Family Controls. Soft
+          lock from stats already works without this. Bundle ID:{' '}
           <Text className="text-foreground font-mono text-[13px]">
             {IOS_BUNDLE_ID}
           </Text>
@@ -213,9 +212,7 @@ export default function FamilyControlsSetupScreen() {
           testID="family-controls-continue"
         >
           <Text className="text-primary-foreground text-base font-semibold">
-            {hasFamilyControls
-              ? 'Continue'
-              : 'Continue in notification-only mode'}
+            {hasFamilyControls ? 'Done' : 'Back to home (soft lock)'}
           </Text>
         </Pressable>
       </ScrollView>

@@ -15,3 +15,4 @@ export {
   homeLocationSchema,
   type HomeLocationDoc,
 } from './HomeLocation'
+export { User, userSchema, type UserDoc } from './User'

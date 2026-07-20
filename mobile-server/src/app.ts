@@ -9,6 +9,7 @@ import sessionRoutes from './routes/session.routes'
 import scheduleRoutes from './routes/schedule.routes'
 import statsRoutes from './routes/stats.routes'
 import homeLocationRoutes from './routes/homeLocation.routes'
+import authRoutes from './routes/auth.routes'
 
 const corsOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:8081'
 
@@ -17,7 +18,7 @@ const app = express()
 /** Do not trust X-Forwarded-For — client IP must be the real socket peer. */
 app.set('trust proxy', false)
 
-/** Step 131 — no auth; home LAN only (private remote addresses). */
+/** LAN only (private remote addresses). Account auth is separate JWT layer. */
 app.use(lanOnlyMiddleware())
 
 app.use(
@@ -57,6 +58,10 @@ app.use('/api/stats', statsRoutes)
 /** Step 137 — home lat/lng for geofencing (persisted in Mongo) */
 app.use('/home-location', homeLocationRoutes)
 app.use('/api/home-location', homeLocationRoutes)
+
+/** Minimal email/password accounts (mobile-server only; not Phase 1 Backend). */
+app.use('/auth', authRoutes)
+app.use('/api/auth', authRoutes)
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ message: 'Not found' })

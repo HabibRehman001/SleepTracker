@@ -31,7 +31,8 @@
         {
           "color": "#3d7eff"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
@@ -40,7 +41,11 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.sleeptracker.sleeplock",
       "infoPlist": {
-        "UIBackgroundModes": ["location", "fetch", "processing"],
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "processing"
+        ],
         "NSMotionUsageDescription": "Sleep Lock uses motion and step data to learn your activity baseline during setup."
       }
     },

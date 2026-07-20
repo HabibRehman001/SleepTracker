@@ -31,9 +31,9 @@ assert.match(pager, /testID=["']onboarding-pager["']/)
 assert.match(pager, /onboarding-done/)
 assert.match(pager, /testID=["']onboarding-skip["']/)
 
-assert.match(slides, /2 days|two days/i)
+assert.match(slides, /stats|account|permission/i)
 assert.match(slides, /lock/i)
-assert.match(slides, /schedule/i)
+assert.match(slides, /schedule|soft lock/i)
 
 const slideCount = (slides.match(/key:\s*['"]/g) ?? []).length
 assert.ok(

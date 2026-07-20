@@ -9,13 +9,14 @@ import {
   classifyLockCapability,
 } from '../native'
 import * as lockService from '../services/lockService'
+import { useAuthStore } from '../store/authStore'
 import { useAppStore } from '../store/useAppStore'
 import { useHomeLocationStore } from '../store/homeLocationStore'
 import { useLockStateStore } from '../store/lockStateStore'
 
 /**
- * Home — lock UI driven by useLockStateStore (Step 123).
- * Setup: … → Device Owner → Family Controls (Steps 133–139).
+ * Home — soft lock from stats by default; Device Owner / Family Controls optional.
+ * First-run: onboarding → account → permissions → set-home → home.
  */
 export default function HomeScreen() {
   const onboardingDone = useAppStore((s) => s.onboardingDone)
@@ -24,8 +25,12 @@ export default function HomeScreen() {
   const notificationSetupDone = useAppStore((s) => s.notificationSetupDone)
   const homeSetupDone = useAppStore((s) => s.homeSetupDone)
   const setHomeSetupDone = useAppStore((s) => s.setHomeSetupDone)
-  const deviceOwnerSetupDone = useAppStore((s) => s.deviceOwnerSetupDone)
-  const familyControlsSetupDone = useAppStore((s) => s.familyControlsSetupDone)
+
+  const authHydrated = useAuthStore((s) => s.hydrated)
+  const authUser = useAuthStore((s) => s.user)
+  const authToken = useAuthStore((s) => s.token)
+  const hydrateAuth = useAuthStore((s) => s.hydrate)
+  const logout = useAuthStore((s) => s.logout)
 
   const homeHydrated = useHomeLocationStore((s) => s.hydrated)
   const homeLat = useHomeLocationStore((s) => s.latitude)
@@ -43,6 +48,10 @@ export default function HomeScreen() {
   const setBusy = useLockStateStore((s) => s.setBusy)
   const setReady = useLockStateStore((s) => s.setReady)
   const setLastError = useLockStateStore((s) => s.setLastError)
+
+  useEffect(() => {
+    void hydrateAuth()
+  }, [hydrateAuth])
 
   useEffect(() => {
     lockService.configureLockService()
@@ -83,8 +92,20 @@ export default function HomeScreen() {
     setHomeSetupDone,
   ])
 
+  if (!authHydrated) {
+    return (
+      <View className="bg-background flex-1 items-center justify-center">
+        <ActivityIndicator color="#fafafa" />
+      </View>
+    )
+  }
+
   if (!onboardingDone) {
     return <Redirect href="/onboarding" />
+  }
+
+  if (!authToken || !authUser) {
+    return <Redirect href="/auth" />
   }
 
   if (!locationSetupDone) {
@@ -108,14 +129,6 @@ export default function HomeScreen() {
       )
     }
     return <Redirect href="/set-home" />
-  }
-
-  if (!deviceOwnerSetupDone) {
-    return <Redirect href="/device-owner-setup" />
-  }
-
-  if (!familyControlsSetupDone) {
-    return <Redirect href="/family-controls-setup" />
   }
 
   const toggle = async () => {
@@ -153,6 +166,10 @@ export default function HomeScreen() {
         <Text className="text-foreground text-base font-semibold">
           {SOFT_LOCK_ENABLED_LABEL}
         </Text>
+        <Text className="text-muted-foreground text-center text-xs leading-5 mt-1">
+          Driven by your sleep stats. Full device lock needs Device Owner
+          (optional).
+        </Text>
       </View>
     ) : (
       <View
@@ -163,8 +180,9 @@ export default function HomeScreen() {
           {NOTIFICATION_ONLY_MODE_LABEL}
         </Text>
         <Text className="text-muted-foreground text-center text-xs leading-5">
-          Lock windows send alerts only until Family Controls (iOS) or Device
-          Owner (Android) is ready.
+          Soft lock from your stats: schedules and countdown alerts. Full phone
+          lockdown needs Device Owner (Android) or Family Controls (iOS) — optional
+          later.
         </Text>
       </View>
     )
@@ -177,9 +195,18 @@ export default function HomeScreen() {
       <Text className="text-foreground text-3xl font-semibold mb-3">
         Sleep Lock
       </Text>
-      <Text className="text-muted-foreground text-center text-[15px] leading-6 mb-4">
-        Same dark tokens as the web app — one product across analysis + lock.
+      <Text className="text-muted-foreground text-center text-[15px] leading-6 mb-2">
+        Stats-driven soft lock — reminders and schedule help, not a full system
+        lockdown unless Device Owner is enabled.
       </Text>
+      {authUser ? (
+        <Text
+          className="text-muted-foreground text-xs mb-4"
+          testID="auth-user-email"
+        >
+          {authUser.email}
+        </Text>
+      ) : null}
 
       {capabilityBadge}
 
@@ -219,14 +246,14 @@ export default function HomeScreen() {
       <Link href="/device-owner-setup" asChild>
         <Pressable className="px-4 py-2.5" testID="open-device-owner-setup">
           <Text className="text-sidebar-primary text-[15px] font-medium">
-            Device Owner setup
+            Optional: full lock (Device Owner)
           </Text>
         </Pressable>
       </Link>
       <Link href="/family-controls-setup" asChild>
         <Pressable className="px-4 py-2.5" testID="open-family-controls-setup">
           <Text className="text-sidebar-primary text-[15px] font-medium">
-            Family Controls setup
+            Optional: Family Controls (iOS)
           </Text>
         </Pressable>
       </Link>
@@ -244,6 +271,13 @@ export default function HomeScreen() {
           </Text>
         </Pressable>
       </Link>
+      <Pressable
+        className="px-4 py-2 mt-2"
+        onPress={() => void logout()}
+        testID="auth-logout"
+      >
+        <Text className="text-muted-foreground text-[14px]">Log out</Text>
+      </Pressable>
     </View>
   )
 }

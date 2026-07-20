@@ -10,10 +10,11 @@ import {
   requestMotionPermissions,
   type MotionPermissionPhase,
 } from '../services/sensors'
+import { showPermissionRequiredAlert } from '../services/permissionGate'
 import { useAppStore } from '../store/useAppStore'
 
 /**
- * Step 135 — accelerometer + activity recognition / Core Motion for steps.
+ * Hard-gated motion / activity permission — cannot continue without Allow.
  */
 export default function MotionPermissionScreen() {
   const insets = useSafeAreaInsets()
@@ -23,36 +24,48 @@ export default function MotionPermissionScreen() {
   const [phase, setPhase] = useState<MotionPermissionPhase | 'intro'>('intro')
   const [canAskAgain, setCanAskAgain] = useState(true)
 
-  const finish = useCallback(() => {
-    setMotionSetupDone(true)
-    router.replace('/notification-permission')
-  }, [setMotionSetupDone])
-
   const request = useCallback(async () => {
     setBusy(true)
     try {
       const result = await requestMotionPermissions()
-      setPhase(result.phase)
-      setCanAskAgain(
+      const askAgain =
         result.phase === 'accelerometer_denied'
           ? result.canAskAgainAccelerometer
           : result.canAskAgainActivity
-      )
+      setCanAskAgain(askAgain)
+
       if (result.phase === 'granted') {
         setMotionSetupDone(true)
         router.replace('/notification-permission')
+        return
+      }
+
+      if (askAgain) {
+        setPhase('intro')
+        showPermissionRequiredAlert({
+          canAskAgain: true,
+          onRetry: () => void request(),
+          detail:
+            'Motion and step counting are required for your sleep baseline. Tap OK to allow access.',
+        })
+      } else {
+        setPhase(result.phase)
       }
     } catch (err: unknown) {
       console.error(err)
-      setPhase('activity_denied')
-      setCanAskAgain(true)
+      setPhase('intro')
+      showPermissionRequiredAlert({
+        canAskAgain: true,
+        onRetry: () => void request(),
+      })
     } finally {
       setBusy(false)
     }
   }, [setMotionSetupDone])
 
   const showExplainer =
-    phase === 'accelerometer_denied' || phase === 'activity_denied'
+    (phase === 'accelerometer_denied' || phase === 'activity_denied') &&
+    !canAskAgain
 
   const platformHint =
     Platform.OS === 'android'
@@ -78,7 +91,6 @@ export default function MotionPermissionScreen() {
           kind={phase === 'accelerometer_denied' ? 'accelerometer' : 'activity'}
           canAskAgain={canAskAgain}
           onTryAgain={() => void request()}
-          onContinueWithout={finish}
         />
       ) : (
         <View className="flex-1 justify-center px-8">
@@ -95,7 +107,8 @@ export default function MotionPermissionScreen() {
             {ACTIVITY_RECOGNITION_WHY}
           </Text>
           <Text className="text-muted-foreground text-[14px] leading-6 mb-8">
-            We’ll enable the accelerometer, then request step counting. {platformHint}
+            We’ll enable the accelerometer, then request step counting.{' '}
+            {platformHint} You must allow to continue.
           </Text>
 
           <Pressable

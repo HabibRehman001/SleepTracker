@@ -10,11 +10,11 @@ import {
   requestLocationPermissionsTwoStep,
   type LocationPermissionPhase,
 } from '../services/location'
+import { showPermissionRequiredAlert } from '../services/permissionGate'
 import { useAppStore } from '../store/useAppStore'
 
 /**
- * Step 134 — two-step location permission (foreground → background).
- * Background denial shows an explanation + settings deep-link (not silent).
+ * Hard-gated location permission — cannot continue without Allow.
  */
 export default function LocationPermissionScreen() {
   const insets = useSafeAreaInsets()
@@ -24,37 +24,48 @@ export default function LocationPermissionScreen() {
   const [phase, setPhase] = useState<LocationPermissionPhase | 'intro'>('intro')
   const [canAskAgain, setCanAskAgain] = useState(true)
 
-  const finish = useCallback(() => {
-    setLocationSetupDone(true)
-    router.replace('/motion-permission')
-  }, [setLocationSetupDone])
-
   const request = useCallback(async () => {
     setBusy(true)
     try {
       const result = await requestLocationPermissionsTwoStep()
-      setPhase(result.phase)
-      setCanAskAgain(
+      const askAgain =
         result.phase === 'foreground_denied'
           ? result.canAskAgainForeground
           : result.canAskAgainBackground
-      )
+      setCanAskAgain(askAgain)
+
       if (result.phase === 'granted') {
         setLocationSetupDone(true)
         router.replace('/motion-permission')
+        return
+      }
+
+      if (askAgain) {
+        setPhase('intro')
+        showPermissionRequiredAlert({
+          canAskAgain: true,
+          onRetry: () => void request(),
+          detail:
+            'Location is required for geofencing. Tap OK to allow access.',
+        })
+      } else {
+        setPhase(result.phase)
       }
     } catch (err: unknown) {
-      // Treat unexpected errors like a denial — never fail silently.
       console.error(err)
-      setPhase('background_denied')
-      setCanAskAgain(true)
+      setPhase('intro')
+      showPermissionRequiredAlert({
+        canAskAgain: true,
+        onRetry: () => void request(),
+      })
     } finally {
       setBusy(false)
     }
   }, [setLocationSetupDone])
 
   const showExplainer =
-    phase === 'foreground_denied' || phase === 'background_denied'
+    (phase === 'foreground_denied' || phase === 'background_denied') &&
+    !canAskAgain
 
   return (
     <View
@@ -73,7 +84,6 @@ export default function LocationPermissionScreen() {
           kind={phase === 'foreground_denied' ? 'foreground' : 'background'}
           canAskAgain={canAskAgain}
           onTryAgain={() => void request()}
-          onContinueWithout={finish}
           onOpenSettings={() => void openAppSettings()}
         />
       ) : (
@@ -89,7 +99,7 @@ export default function LocationPermissionScreen() {
           </Text>
           <Text className="text-muted-foreground text-[15px] leading-6 mb-8">
             We’ll ask twice: first while you use the app, then background access —
-            both Android and iOS require that order.
+            both Android and iOS require that order. You must allow to continue.
           </Text>
 
           <Pressable

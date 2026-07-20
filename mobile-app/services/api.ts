@@ -16,16 +16,25 @@ export class ApiError extends Error {
   }
 }
 
+let tokenGetter: (() => string | null) | null = null
+
+/** Registered by authStore so mobileFetch can attach Bearer without circular imports. */
+export function setAuthTokenGetter(getter: () => string | null): void {
+  tokenGetter = getter
+}
+
 export async function mobileFetch<T>(
   path: string,
   init?: RequestInit
 ): Promise<T> {
   const url = `${MOBILE_API_BASE}${path.startsWith('/') ? path : `/${path}`}`
+  const token = tokenGetter?.() ?? null
   const res = await fetch(url, {
     ...init,
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers ?? {}),
     },
   })

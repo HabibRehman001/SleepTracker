@@ -35,6 +35,10 @@ export default function RootLayout() {
           options={{ headerShown: false, animation: 'fade' }}
         />
         <Stack.Screen
+          name="auth"
+          options={{ headerShown: false, animation: 'fade' }}
+        />
+        <Stack.Screen
           name="location-permission"
           options={{ headerShown: false, animation: 'fade' }}
         />

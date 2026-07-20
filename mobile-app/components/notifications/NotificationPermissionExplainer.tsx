@@ -6,16 +6,14 @@ import { openAppSettings } from '../../services/location'
 type Props = {
   canAskAgain: boolean
   onTryAgain: () => void
-  onContinueWithout: () => void
 }
 
 /**
- * Shown when notification permission is denied (Step 136).
+ * Shown when notifications were denied permanently (canAskAgain false).
  */
 export function NotificationPermissionExplainer({
   canAskAgain,
   onTryAgain,
-  onContinueWithout,
 }: Props) {
   return (
     <View
@@ -29,14 +27,14 @@ export function NotificationPermissionExplainer({
         Why we need this
       </Text>
       <Text className="text-foreground text-3xl font-semibold leading-tight mb-4">
-        Notifications are off
+        Notifications are required
       </Text>
       <Text
         className="text-muted-foreground text-[16px] leading-7 mb-8"
         testID="notification-why-body"
       >
         {NOTIFICATION_PURPOSE} Without them, you won’t get the lock countdown
-        heads-up.
+        heads-up. You can’t continue until notifications are allowed.
       </Text>
 
       <Pressable
@@ -59,18 +57,16 @@ export function NotificationPermissionExplainer({
         </Pressable>
       ) : (
         <Text className="text-muted-foreground text-center text-sm mb-3 leading-5">
-          Enable notifications in Settings, then return here.
+          Enable notifications in Settings, then tap OK.
         </Text>
       )}
 
       <Pressable
-        className="py-3 items-center"
-        onPress={onContinueWithout}
-        testID="notification-continue-without"
+        className="border border-border py-4 rounded-lg items-center"
+        onPress={onTryAgain}
+        testID="notification-permission-ok"
       >
-        <Text className="text-muted-foreground text-[15px]">
-          Continue without notifications
-        </Text>
+        <Text className="text-foreground text-base font-semibold">OK</Text>
       </Pressable>
     </View>
   )

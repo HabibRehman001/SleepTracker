@@ -23,7 +23,8 @@
     "test:set-home": "npx tsx scripts/check-set-home.mjs",
     "test:device-owner-setup": "npx tsx scripts/check-device-owner-setup.mjs",
     "test:family-controls-setup": "npx tsx scripts/check-family-controls-setup.mjs",
-    "test:permissions-status": "npx tsx scripts/check-permissions-status.mjs"
+    "test:permissions-status": "npx tsx scripts/check-permissions-status.mjs",
+    "test:auth": "npx tsx scripts/check-auth.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.6",
@@ -37,6 +38,7 @@
     "expo-location": "~57.0.5",
     "expo-notifications": "~57.0.6",
     "expo-router": "~57.0.7",
+    "expo-secure-store": "~57.0.1",
     "expo-sensors": "~57.0.2",
     "expo-status-bar": "~57.0.1",
     "expo-task-manager": "~57.0.5",

@@ -34,6 +34,9 @@ assert.match(screen, /testID=["']motion-permission-screen["']/)
 
 assert.match(explainer, /Why we need this/)
 assert.match(explainer, /testID=["']motion-open-settings["']/)
+assert.doesNotMatch(explainer, /Continue without/)
+assert.doesNotMatch(screen, /onContinueWithout|Continue without/)
+assert.match(screen, /showPermissionRequiredAlert/)
 
 assert.match(layout, /motion-permission/)
 assert.match(locationScreen, /motion-permission/)

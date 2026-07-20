@@ -66,7 +66,7 @@ export default function DeviceOwnerSetupScreen() {
 
   const finish = () => {
     setDeviceOwnerSetupDone(true)
-    router.replace('/family-controls-setup')
+    router.replace('/')
   }
 
   return (
@@ -87,7 +87,8 @@ export default function DeviceOwnerSetupScreen() {
           Device Owner setup
         </Text>
         <Text className="text-muted-foreground text-[15px] leading-6 mb-6">
-          Full lock (kiosk / call block) needs Device Owner. This cannot be done
+          Optional: true full-device lock needs Device Owner. Soft lock already
+          works from your sleep stats without this. Full lock cannot be granted
           inside the app — run ADB once on a phone with no Google account.
         </Text>
 
@@ -161,7 +162,7 @@ export default function DeviceOwnerSetupScreen() {
           testID="device-owner-continue"
         >
           <Text className="text-primary-foreground text-base font-semibold">
-            {isDeviceOwner ? 'Continue' : 'Continue without Device Owner'}
+            {isDeviceOwner ? 'Done' : 'Back to home (soft lock)'}
           </Text>
         </Pressable>
       </ScrollView>

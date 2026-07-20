@@ -6,8 +6,8 @@ import { useBaselineStore } from '../store/baselineStore'
 import { useScheduleStore } from '../store/scheduleStore'
 
 /**
- * Welcome / onboarding — swipeable intro (Step 133).
- * Seeds baseline + draft schedule, then location permissions (Step 134).
+ * Welcome / onboarding — swipeable intro.
+ * Seeds baseline + draft schedule, then create account.
  */
 export default function OnboardingScreen() {
   const setOnboardingDone = useAppStore((s) => s.setOnboardingDone)
@@ -23,7 +23,7 @@ export default function OnboardingScreen() {
     })
     setSchedule('23:00', '07:00')
     setOnboardingDone(true)
-    router.replace('/location-permission')
+    router.replace('/auth')
   }
 
   return <OnboardingPager onFinished={finish} />

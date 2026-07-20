@@ -22,22 +22,26 @@ assert.ok(existsSync(join(root, 'app/onboarding.tsx')))
 
 assert.match(layout, /name=["']index["']/)
 assert.match(layout, /name=["']onboarding["']/)
+assert.match(layout, /name=["']auth["']/)
 
 assert.match(home, /from ['"]expo-router['"]/)
 assert.match(home, /href=["']\/onboarding["']/)
 assert.match(home, /testID=["']open-onboarding["']/)
 assert.match(home, /testID=["']home-screen["']/)
+assert.match(home, /\/auth/)
 
 assert.match(onboarding, /from ['"]expo-router['"]/)
-assert.match(
-  onboarding,
-  /router\.(replace|push)\(['"]\/(location-permission)?['"]\)|href=["']\/["']/
-)
+assert.match(onboarding, /router\.replace\(['"]\/auth['"]\)/)
 assert.match(onboarding, /OnboardingPager|testID=["']onboarding-screen["']/)
+assert.ok(existsSync(join(root, 'app/auth.tsx')))
+assert.match(
+  readFileSync(join(root, 'app/auth.tsx'), 'utf8'),
+  /testID=["']auth-screen["']/
+)
 assert.match(
   readFileSync(join(root, 'components/onboarding/OnboardingPager.tsx'), 'utf8'),
   /onboarding-done/
 )
 assert.match(layout, /location-permission/)
 
-console.log('Expo Router navigation contract OK — index ↔ onboarding')
+console.log('Expo Router navigation contract OK — onboarding → auth → home')

@@ -24,12 +24,15 @@ assert.match(screen, /testID=["']device-owner-adb-copy["']/)
 assert.match(screen, /isDeviceOwner/)
 assert.match(screen, /FULL_LOCK_ENABLED_LABEL|Full lock enabled/)
 assert.match(layout, /device-owner-setup/)
-assert.match(setHome, /device-owner-setup/)
+assert.match(setHome, /router\.replace\(['"]\/['"]/)
+assert.match(index, /device-owner-setup|open-device-owner-setup/)
 assert.match(index, /full-lock-enabled-badge|FULL_LOCK_ENABLED_LABEL/)
+assert.doesNotMatch(index, /!deviceOwnerSetupDone/)
+assert.match(screen, /soft lock|optional/i)
 assert.match(stub, /DeviceAdminReceiver/)
 assert.match(
   DEVICE_OWNER_ADB_COMMAND,
   /com\.sleeptracker\.sleeplock\/\.DeviceAdminReceiver/
 )
 
-console.log('Device Owner setup contract OK — copyable ADB + isDeviceOwner UI')
+console.log('Device Owner setup contract OK — optional full lock + ADB')

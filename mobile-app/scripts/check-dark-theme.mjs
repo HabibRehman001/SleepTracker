@@ -14,7 +14,10 @@ const webCss = readFileSync(
 )
 const tw = readFileSync(join(root, 'tailwind.config.js'), 'utf8')
 const home = readFileSync(join(root, 'app/index.tsx'), 'utf8')
-const onboarding = readFileSync(join(root, 'app/onboarding.tsx'), 'utf8')
+const onboardingPager = readFileSync(
+  join(root, 'components/onboarding/OnboardingPager.tsx'),
+  'utf8'
+)
 const appJson = JSON.parse(readFileSync(join(root, 'app.json'), 'utf8'))
 const cjs = readFileSync(join(root, 'theme/tokens.cjs'), 'utf8')
 
@@ -31,7 +34,7 @@ assert.match(home, /bg-background/)
 assert.match(home, /text-foreground/)
 assert.match(home, /text-muted-foreground/)
 assert.match(home, /bg-primary/)
-assert.match(onboarding, /bg-background/)
-assert.match(onboarding, /text-foreground/)
+assert.match(onboardingPager, /bg-background/)
+assert.match(onboardingPager, /text-foreground/)
 
 console.log('Dark theme contract OK — tokens match web-app #0a0a0a')

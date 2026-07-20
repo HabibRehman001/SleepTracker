@@ -10,22 +10,20 @@ type Props = {
   kind: 'accelerometer' | 'activity'
   canAskAgain: boolean
   onTryAgain: () => void
-  onContinueWithout: () => void
 }
 
 /**
- * Shown when motion / activity permission is denied (Step 135).
+ * Shown when motion was denied permanently (canAskAgain false).
  */
 export function MotionPermissionExplainer({
   kind,
   canAskAgain,
   onTryAgain,
-  onContinueWithout,
 }: Props) {
   const isActivity = kind === 'activity'
   const title = isActivity
-    ? 'Activity recognition is off'
-    : 'Motion sensors are off'
+    ? 'Activity recognition is required'
+    : 'Motion sensors are required'
   const why = isActivity ? ACTIVITY_RECOGNITION_WHY : MOTION_PURPOSE
 
   return (
@@ -43,7 +41,7 @@ export function MotionPermissionExplainer({
         className="text-muted-foreground text-[16px] leading-7 mb-8"
         testID="motion-why-body"
       >
-        {why}
+        {why} You can’t continue until this is allowed.
       </Text>
 
       <Pressable
@@ -66,18 +64,16 @@ export function MotionPermissionExplainer({
         </Pressable>
       ) : (
         <Text className="text-muted-foreground text-center text-sm mb-3 leading-5">
-          Enable motion / activity access in Settings, then return here.
+          Enable motion / activity access in Settings, then tap OK.
         </Text>
       )}
 
       <Pressable
-        className="py-3 items-center"
-        onPress={onContinueWithout}
-        testID="motion-continue-without"
+        className="border border-border py-4 rounded-lg items-center"
+        onPress={onTryAgain}
+        testID="motion-permission-ok"
       >
-        <Text className="text-muted-foreground text-[15px]">
-          Continue without {isActivity ? 'step counting' : 'motion'}
-        </Text>
+        <Text className="text-foreground text-base font-semibold">OK</Text>
       </Pressable>
     </View>
   )

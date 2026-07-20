@@ -33,9 +33,16 @@ assert.match(explainer, /Why we need this/)
 assert.match(explainer, /testID=["']location-open-settings["']/)
 assert.match(explainer, /testID=["']location-why-body["']/)
 assert.match(explainer, /BACKGROUND_LOCATION_WHY|background location/i)
+assert.doesNotMatch(explainer, /Continue without/)
+assert.doesNotMatch(screen, /onContinueWithout|Continue without/)
+assert.match(
+  readFileSync(join(root, 'services/permissionGate.ts'), 'utf8'),
+  /Permission required/
+)
+assert.match(screen, /showPermissionRequiredAlert/)
 
 assert.match(layout, /location-permission/)
-assert.match(onboarding, /location-permission/)
+assert.match(onboarding, /auth/)
 assert.match(store, /locationSetupDone/)
 
 // PermissionStatus string values (avoid expo-location ESM named-export quirks in tsx)

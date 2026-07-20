@@ -10,10 +10,11 @@ import {
   requestNotificationPermissions,
   type NotificationPermissionPhase,
 } from '../services/notifications'
+import { showPermissionRequiredAlert } from '../services/permissionGate'
 import { useAppStore } from '../store/useAppStore'
 
 /**
- * Step 136 — notification permission for the lock-in-30-minutes alert.
+ * Hard-gated notification permission — cannot continue without Allow.
  */
 export default function NotificationPermissionScreen() {
   const insets = useSafeAreaInsets()
@@ -25,31 +26,42 @@ export default function NotificationPermissionScreen() {
   )
   const [canAskAgain, setCanAskAgain] = useState(true)
 
-  const finish = useCallback(() => {
-    setNotificationSetupDone(true)
-    router.replace('/set-home')
-  }, [setNotificationSetupDone])
-
   const request = useCallback(async () => {
     setBusy(true)
     try {
       const result = await requestNotificationPermissions()
-      setPhase(result.phase)
       setCanAskAgain(result.canAskAgain)
+
       if (result.phase === 'granted') {
         setNotificationSetupDone(true)
         router.replace('/set-home')
+        return
+      }
+
+      if (result.canAskAgain) {
+        setPhase('intro')
+        showPermissionRequiredAlert({
+          canAskAgain: true,
+          onRetry: () => void request(),
+          detail:
+            'Notifications are required for lock countdown alerts. Tap OK to allow access.',
+        })
+      } else {
+        setPhase('denied')
       }
     } catch (err: unknown) {
       console.error(err)
-      setPhase('denied')
-      setCanAskAgain(true)
+      setPhase('intro')
+      showPermissionRequiredAlert({
+        canAskAgain: true,
+        onRetry: () => void request(),
+      })
     } finally {
       setBusy(false)
     }
   }, [setNotificationSetupDone])
 
-  const showExplainer = phase === 'denied'
+  const showExplainer = phase === 'denied' && !canAskAgain
 
   return (
     <View
@@ -67,7 +79,6 @@ export default function NotificationPermissionScreen() {
         <NotificationPermissionExplainer
           canAskAgain={canAskAgain}
           onTryAgain={() => void request()}
-          onContinueWithout={finish}
         />
       ) : (
         <View className="flex-1 justify-center px-8">
@@ -82,7 +93,8 @@ export default function NotificationPermissionScreen() {
           </Text>
           <Text className="text-muted-foreground text-[15px] leading-6 mb-8">
             Example: “Phone will lock in {LOCK_WARNING_MINUTES} minutes.” You’ll
-            get that heads-up before Sleep Lock engages.
+            get that heads-up before Sleep Lock engages. You must allow to
+            continue.
           </Text>
 
           <Pressable

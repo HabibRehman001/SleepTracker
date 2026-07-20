@@ -50,6 +50,6 @@ assert.match(
   DEVICE_OWNER_ADB_COMMAND,
   /adb shell dpm set-device-owner com\.sleeptracker\.sleeplock\/\.DeviceAdminReceiver/
 )
-assert.equal(FULL_LOCK_ENABLED_LABEL, '✅ Full lock enabled')
+assert.equal(FULL_LOCK_ENABLED_LABEL, 'Full lock enabled (Device Owner)')
 
 console.log('native/ mock contract OK — isDeviceOwner + Device Owner ADB')

@@ -7,24 +7,23 @@ type Props = {
   kind: 'foreground' | 'background'
   canAskAgain: boolean
   onTryAgain: () => void
-  onContinueWithout: () => void
   onOpenSettings: () => void
 }
 
 /**
- * Shown when location permission is denied — never a silent failure (Step 134).
+ * Shown when location was denied permanently (canAskAgain false).
+ * Soft denials use Alert "Permission required" + OK → re-prompt instead.
  */
 export function LocationPermissionExplainer({
   kind,
   canAskAgain,
   onTryAgain,
-  onContinueWithout,
   onOpenSettings,
 }: Props) {
   const isBackground = kind === 'background'
   const title = isBackground
-    ? 'Background location is off'
-    : 'Location permission is off'
+    ? 'Background location is required'
+    : 'Location permission is required'
   const why = isBackground
     ? BACKGROUND_LOCATION_WHY
     : `${LOCATION_PURPOSE} We need “While using the app” before we can ask for background access.`
@@ -44,7 +43,7 @@ export function LocationPermissionExplainer({
         className="text-muted-foreground text-[16px] leading-7 mb-8"
         testID="location-why-body"
       >
-        {why}
+        {why} You can’t continue until location is allowed.
       </Text>
 
       <Pressable
@@ -67,18 +66,17 @@ export function LocationPermissionExplainer({
         </Pressable>
       ) : (
         <Text className="text-muted-foreground text-center text-sm mb-3 leading-5">
-          Permission was denied permanently — enable it in Settings, then return here.
+          Permission was denied permanently — enable it in Settings, then tap Try
+          again.
         </Text>
       )}
 
       <Pressable
-        className="py-3 items-center"
-        onPress={onContinueWithout}
-        testID="location-continue-without"
+        className="border border-border py-4 rounded-lg items-center"
+        onPress={onTryAgain}
+        testID="location-permission-ok"
       >
-        <Text className="text-muted-foreground text-[15px]">
-          Continue without {isBackground ? 'background ' : ''}location
-        </Text>
+        <Text className="text-foreground text-base font-semibold">OK</Text>
       </Pressable>
     </View>
   )

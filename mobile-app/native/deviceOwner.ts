@@ -22,4 +22,4 @@ export const DEVICE_OWNER_STEPS = [
   'Open Sleep Lock and tap “Check Device Owner status”.',
 ] as const
 
-export const FULL_LOCK_ENABLED_LABEL = '✅ Full lock enabled'
+export const FULL_LOCK_ENABLED_LABEL = 'Full lock enabled (Device Owner)'

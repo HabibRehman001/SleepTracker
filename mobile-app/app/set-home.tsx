@@ -69,8 +69,8 @@ export default function SetHomeScreen() {
     try {
       await persistToBackend()
       setHomeSetupDone(true)
-      // Cast: .expo typed routes can lag until Metro regenerates them.
-      router.replace('/device-owner-setup' as Href)
+      // Soft-lock path: home next. Device Owner is optional from home.
+      router.replace('/' as Href)
     } catch {
       // lastError already set on store
     }
