@@ -6,6 +6,9 @@ import { StyleSheet } from 'react-native'
 import { queryClient } from '../services/queryClient'
 import { darkTokens } from '../theme/tokens'
 
+// Step 141 — TaskManager.defineTask must run in global scope (before screens mount).
+import '../services/backgroundTasks'
+
 import '../global.css'
 
 // NativeWind web: must match tailwind `darkMode: 'class'` (avoids media-mode crash).
@@ -65,6 +68,14 @@ export default function RootLayout() {
         <Stack.Screen
           name="permissions-status"
           options={{ title: 'Permissions', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen
+          name="manual-sleep-entry"
+          options={{ title: 'Enter sleep', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen
+          name="baseline-results"
+          options={{ headerShown: false, animation: 'fade' }}
         />
       </Stack>
     </QueryClientProvider>

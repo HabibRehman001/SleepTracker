@@ -9,10 +9,13 @@ import {
   classifyLockCapability,
 } from '../native'
 import * as lockService from '../services/lockService'
+import { registerMotionSampleTask } from '../services/backgroundTasks'
 import { useAuthStore } from '../store/authStore'
 import { useAppStore } from '../store/useAppStore'
+import { useBaselineStore } from '../store/baselineStore'
 import { useHomeLocationStore } from '../store/homeLocationStore'
 import { useLockStateStore } from '../store/lockStateStore'
+import { useScheduleStore } from '../store/scheduleStore'
 
 /**
  * Home — soft lock from stats by default; Device Owner / Family Controls optional.
@@ -31,6 +34,12 @@ export default function HomeScreen() {
   const authToken = useAuthStore((s) => s.token)
   const hydrateAuth = useAuthStore((s) => s.hydrate)
   const logout = useAuthStore((s) => s.logout)
+
+  const pendingManualEntry = useBaselineStore((s) => s.pendingManualEntry)
+  const detectionPrompt = useBaselineStore((s) => s.lastDetectionPrompt)
+  const baselineReady = useBaselineStore((s) => s.baselineReady)
+  const baselineResultsSeen = useBaselineStore((s) => s.baselineResultsSeen)
+  const scheduleLockedIn = useScheduleStore((s) => s.lockedIn)
 
   const homeHydrated = useHomeLocationStore((s) => s.hydrated)
   const homeLat = useHomeLocationStore((s) => s.latitude)
@@ -52,6 +61,13 @@ export default function HomeScreen() {
   useEffect(() => {
     void hydrateAuth()
   }, [hydrateAuth])
+
+  useEffect(() => {
+    if (!motionSetupDone) return
+    void registerMotionSampleTask().catch((err: unknown) => {
+      console.warn('[MOTION_SAMPLE] register failed', err)
+    })
+  }, [motionSetupDone])
 
   useEffect(() => {
     lockService.configureLockService()
@@ -129,6 +145,15 @@ export default function HomeScreen() {
       )
     }
     return <Redirect href="/set-home" />
+  }
+
+  if (
+    baselineReady &&
+    !baselineResultsSeen &&
+    !scheduleLockedIn &&
+    !pendingManualEntry
+  ) {
+    return <Redirect href="/baseline-results" />
   }
 
   const toggle = async () => {
@@ -210,6 +235,28 @@ export default function HomeScreen() {
 
       {capabilityBadge}
 
+      {pendingManualEntry ? (
+        <View
+          className="bg-card border border-border rounded-lg px-4 py-3 mb-4 w-full max-w-sm"
+          testID="failed-detection-banner"
+        >
+          <Text className="text-foreground text-[15px] leading-6 mb-3 text-center">
+            {detectionPrompt ??
+              "We couldn't detect last night's sleep — want to enter it manually?"}
+          </Text>
+          <Link href="/manual-sleep-entry" asChild>
+            <Pressable
+              className="bg-primary py-3 rounded-lg items-center"
+              testID="open-manual-sleep-entry"
+            >
+              <Text className="text-primary-foreground text-base font-semibold">
+                Enter sleep manually
+              </Text>
+            </Pressable>
+          </Link>
+        </View>
+      ) : null}
+
       {homeLat != null && homeLng != null ? (
         <Text
           className="text-muted-foreground font-mono text-xs mb-4"
@@ -243,6 +290,15 @@ export default function HomeScreen() {
           </Text>
         </Pressable>
       </Link>
+      {baselineReady ? (
+        <Link href="/baseline-results" asChild>
+          <Pressable className="px-4 py-2.5" testID="open-baseline-results">
+            <Text className="text-sidebar-primary text-[15px] font-medium">
+              Baseline results
+            </Text>
+          </Pressable>
+        </Link>
+      ) : null}
       <Link href="/device-owner-setup" asChild>
         <Pressable className="px-4 py-2.5" testID="open-device-owner-setup">
           <Text className="text-sidebar-primary text-[15px] font-medium">

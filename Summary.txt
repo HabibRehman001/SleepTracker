@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-18 (after Step 140 — permissions status)
+Last updated: 2026-07-21 (after Step 148 — one-round baseline adjustment)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -850,6 +850,47 @@ hasFamilyControlsEntitlement(); soft lock when entitlement is in the build.
 Motion, Notifications, Device Owner (Android), Family Controls (iOS).
 Tap non-OK rows to jump to the fix flow; pull to refresh.
 
+----- 6.101 Background motion sampling (Step 141) -----
+Task MOTION_SAMPLE via TaskManager + BackgroundFetch (minimumInterval 15 min).
+One-shot Accelerometer read → magnitude → AsyncStorage local log (not continuous
+stream). Still-on-table ≈ ~1g samples; ~8 samples expected over 2 hours.
+registerMotionSampleTask after motion permission; defineTask imported in _layout.
+
+----- 6.102 Static threshold (Step 142) -----
+STATIC_THRESHOLD = 0.15 m/s² deviation from gravity (| |a| − 1g | × 9.81).
+isStatic(magnitudeG); flat untouched → under threshold; walking → clearly over.
+Samples store deviationMs2 + isStatic alongside magnitude.
+
+----- 6.103 Longest static window (Step 143) -----
+findLongestStaticWindow(samples): consecutive static runs, keep 6–9h duration
+inside night window 22:00→20:00 next day (shift-worker friendly). Returns
+{ start, end } or null. Ignores short stillness (e.g. 45m TV).
+
+----- 6.104 Static window ∩ home geofence (Step 144) -----
+findLongestSleepWindow / requireAtHome: whole static window must have
+insideHomeGeofence === true. HOME_GEOFENCE_RADIUS_METERS (100m) + haversine;
+last-known geofence state stamped on MOTION_SAMPLE (Step 174 will drive enter/exit).
+Friend’s-house stillness excluded from baseline sleep.
+
+----- 6.105 Two-night baseline average (Step 145) -----
+Persist detected windows in baselineStore; after 2 nights average bed/wake.
+04:10–12:05 + 03:55–11:50 → ~04:02–11:57. baselineReady when sampleNights ≥ 2.
+
+----- 6.106 Failed detection night (Step 146) -----
+If no static window ≥5h: pendingManualEntry + prompt “We couldn't detect last
+night's sleep — want to enter it manually?” Two HH:MM fields on
+/manual-sleep-entry. Failed nights never invent a window into the baseline.
+
+----- 6.107 Baseline results screen (Step 147) -----
+/baseline-results — “Here's what we found”: Night 1 | Night 2 side by side,
+suggested “Sleep 4:00 AM → Wake 12:00 PM”, Adjust then Lock in schedule.
+
+----- 6.108 One-round baseline adjustment (Step 148) -----
+Detected bed/wake is a suggestion. Adjust keeps a live preview
+(liveSchedulePreview): wake 12:00 → 11:30 updates to
+“Sleep 4:00 AM → Wake 11:30 AM” immediately. Last edit before lock-in
+(immutability hardened in Step 150).
+
 ================================================================================
 7. API REFERENCE (current)
 ================================================================================
@@ -951,6 +992,47 @@ Tests (Backend):
 ================================================================================
 11. CHANGE LOG
 ================================================================================
+
+[2026-07-21] Step 148 — One round of manual baseline adjustment
+- liveSchedulePreview: nudge wake 12:00→11:30 updates preview immediately.
+- /baseline-results keeps suggested line visible while Adjust fields are open.
+- TESTED: npm run test:baseline-adjustment; npm run test:baseline-results; tsc --noEmit.
+
+[2026-07-21] Step 147 — Baseline results “Here's what we found”
+- /baseline-results: two nights side by side, suggested schedule, Adjust + Lock in.
+- Redirect when baselineReady until schedule locked / results seen.
+- TESTED: npm run test:baseline-results; tsc --noEmit.
+
+[2026-07-21] Step 146 — Failed detection → manual sleep entry
+- evaluateNightDetection: no window ≥5h → prompt; processNightSamples skips guess.
+- /manual-sleep-entry two HH:MM fields; home banner when pendingManualEntry.
+- TESTED: npm run test:failed-detection; tsc --noEmit.
+
+[2026-07-21] Step 145 — Baseline from 2 detected nights
+- baselineStore.detectedWindows + addDetectedWindow; averages bed/wake after 2 nights.
+- 04:10–12:05 + 03:55–11:50 → 04:02–11:57.
+- TESTED: npm run test:baseline-detection; test:stores; tsc --noEmit.
+
+[2026-07-21] Step 144 — Cross-ref static window with home geofence
+- findLongestSleepWindow requires insideHomeGeofence for whole window.
+- geofence.ts: haversine + last-known state (Step 174 will update enter/exit).
+- TESTED: npm run test:home-geofence-sleep; test:static-window; tsc --noEmit.
+
+[2026-07-21] Step 143 — Longest static window per night
+- findLongestStaticWindow: consecutive static runs, 6–9h, night window 22:00–20:00.
+- Synthetic: 04:15–12:20 sleep wins; 45m evening TV ignored.
+- TESTED: npm run test:static-window; tsc --noEmit.
+
+[2026-07-21] Step 142 — STATIC_THRESHOLD 0.15 m/s² from gravity
+- deviationFromGravityMs2 / isStatic; samples store deviationMs2 + isStatic.
+- Flat ≈ 0 under threshold; walking magnitude clearly over.
+- TESTED: npm run test:static-threshold; test:motion-sample; tsc --noEmit.
+
+[2026-07-21] Step 141 — Background MOTION_SAMPLE task (15 min)
+- TaskManager.defineTask('MOTION_SAMPLE') + BackgroundFetch.registerTaskAsync
+  minimumInterval 15*60; storeSample → AsyncStorage local log.
+- One-shot Accelerometer (no getLastReading in expo-sensors); still ≈ ~1g.
+- TESTED: npm run test:motion-sample; tsc --noEmit.
 
 [2026-07-18] Step 140 — Permissions status checklist screen
 - /permissions-status: Location Always / Motion / Notifications / Device Owner

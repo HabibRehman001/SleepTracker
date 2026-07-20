@@ -7,7 +7,9 @@ export {
 } from './scheduleStore'
 export {
   useBaselineStore,
+  BASELINE_TARGET_NIGHTS,
   type BaselineStats,
+  type PersistedSleepWindow,
 } from './baselineStore'
 export { useLockStateStore } from './lockStateStore'
 export { useAppStore } from './useAppStore'

@@ -11,6 +11,7 @@ import {
   type MotionPermissionPhase,
 } from '../services/sensors'
 import { showPermissionRequiredAlert } from '../services/permissionGate'
+import { registerMotionSampleTask } from '../services/backgroundTasks'
 import { useAppStore } from '../store/useAppStore'
 
 /**
@@ -36,6 +37,9 @@ export default function MotionPermissionScreen() {
 
       if (result.phase === 'granted') {
         setMotionSetupDone(true)
+        void registerMotionSampleTask().catch((err: unknown) => {
+          console.warn('[MOTION_SAMPLE] register failed', err)
+        })
         router.replace('/notification-permission')
         return
       }
