@@ -86,8 +86,20 @@ export default function RootLayout() {
           options={{ headerShown: false, animation: 'fade', gestureEnabled: false }}
         />
         <Stack.Screen
+          name="locked"
+          options={{
+            headerShown: false,
+            animation: 'fade',
+            gestureEnabled: false,
+          }}
+        />
+        <Stack.Screen
           name="settings"
           options={{ title: 'Settings', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen
+          name="call-allowlist"
+          options={{ title: 'Call allow-list', headerBackTitle: 'Back' }}
         />
         <Stack.Screen
           name="request-schedule-change"

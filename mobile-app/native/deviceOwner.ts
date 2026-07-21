@@ -13,12 +13,17 @@ export const DEVICE_ADMIN_RECEIVER = '.DeviceAdminReceiver'
  */
 export const DEVICE_OWNER_ADB_COMMAND = `adb shell dpm set-device-owner ${ANDROID_PACKAGE}/${DEVICE_ADMIN_RECEIVER}`
 
+/** Confirm Device Owner after Step 138 ADB (Step 158). */
+export const DEVICE_OWNER_DUMPSYS_COMMAND =
+  'adb shell dumpsys device_policy'
+
 export const DEVICE_OWNER_STEPS = [
   'Factory-reset the phone (or use a device with no Google account).',
   'Skip signing into a Google account during setup.',
   'Enable Developer options → USB debugging.',
   'Install the Sleep Lock build (custom dev client / APK).',
   'Connect USB and run the ADB command below on your computer.',
+  `Verify with: ${DEVICE_OWNER_DUMPSYS_COMMAND} (lists this app as Device Owner).`,
   'Open Sleep Lock and tap “Check Device Owner status”.',
 ] as const
 

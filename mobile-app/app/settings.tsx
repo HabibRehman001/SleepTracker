@@ -158,6 +158,14 @@ export default function SettingsScreen() {
         </Link>
       ) : null}
 
+      <Link href="/call-allowlist" asChild>
+        <Pressable className="py-3" testID="settings-open-call-allowlist">
+          <Text className="text-sidebar-primary text-[15px] font-medium">
+            Call allow-list (lock)
+          </Text>
+        </Pressable>
+      </Link>
+
       <Link href="/permissions-status" asChild>
         <Pressable className="py-3" testID="settings-open-permissions">
           <Text className="text-sidebar-primary text-[15px] font-medium">

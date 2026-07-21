@@ -22,6 +22,13 @@
     "test:notification-permissions": "npx tsx scripts/check-notification-permissions.mjs",
     "test:set-home": "npx tsx scripts/check-set-home.mjs",
     "test:device-owner-setup": "npx tsx scripts/check-device-owner-setup.mjs",
+    "test:device-admin": "npx tsx scripts/check-device-admin.mjs",
+    "test:lock-task": "npx tsx scripts/check-lock-task.mjs",
+    "test:lock-task-exit": "npx tsx scripts/check-lock-task-exit.mjs",
+    "test:emergency-edge-cases": "npx tsx scripts/check-emergency-edge-cases.mjs",
+    "test:lock-crash-recovery": "npx tsx scripts/check-lock-crash-recovery.mjs",
+    "test:call-screening": "npx tsx scripts/check-call-screening.mjs",
+    "test:incoming-call-policy": "npx tsx scripts/check-incoming-call-policy.mjs",
     "test:family-controls-setup": "npx tsx scripts/check-family-controls-setup.mjs",
     "test:permissions-status": "npx tsx scripts/check-permissions-status.mjs",
     "test:auth": "npx tsx scripts/check-auth.mjs",
@@ -39,7 +46,8 @@
     "test:scheduled-unlock": "npx tsx scripts/check-scheduled-unlock.mjs",
     "test:pre-lock-warning": "npx tsx scripts/check-pre-lock-warning.mjs",
     "test:late-arrival": "npx tsx scripts/check-late-arrival.mjs",
-    "test:lock-countdown": "npx tsx scripts/check-lock-countdown.mjs"
+    "test:lock-countdown": "npx tsx scripts/check-lock-countdown.mjs",
+    "test:locked-screen": "npx tsx scripts/check-locked-screen.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.6",

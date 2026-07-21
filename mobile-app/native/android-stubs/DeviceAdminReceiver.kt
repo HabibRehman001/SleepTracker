@@ -1,28 +1,9 @@
 /**
- * Android Device Admin stub for Device Owner (Step 138).
+ * @deprecated Step 158 — real sources live in `native/android/`.
+ * Kept so older Step 138 checks still resolve; prefer native/android/.
  *
- * Copy into the Android project after `npx expo prebuild` (or wire via a
- * config plugin) as:
+ * Copy target after prebuild (via plugins/withDeviceAdmin.js):
  *   android/app/src/main/java/com/sleeptracker/sleeplock/DeviceAdminReceiver.kt
- *
- * Manifest (inside <application>):
- *   <receiver
- *     android:name=".DeviceAdminReceiver"
- *     android:permission="android.permission.BIND_DEVICE_ADMIN"
- *     android:exported="true">
- *     <meta-data
- *       android:name="android.app.device_admin"
- *       android:resource="@xml/device_admin" />
- *     <intent-filter>
- *       <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
- *     </intent-filter>
- *   </receiver>
- *
- * Then once (no Google account on device):
- *   adb shell dpm set-device-owner com.sleeptracker.sleeplock/.DeviceAdminReceiver
- *
- * Native SleepLockModule.isDeviceOwner() should call:
- *   DevicePolicyManager.isDeviceOwnerApp(packageName)
  */
 
 package com.sleeptracker.sleeplock

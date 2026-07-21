@@ -69,7 +69,7 @@ export default function LockCountdownScreen() {
           } catch (err) {
             console.warn('[lock-countdown] enableLock failed', err)
           } finally {
-            router.replace('/')
+            router.replace('/locked')
           }
         })()
       }

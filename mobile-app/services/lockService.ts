@@ -50,4 +50,33 @@ export async function getLockCapability(): Promise<LockCapability> {
   return classifyLockCapability(owner, family)
 }
 
+/** Step 162 — push favorites allow-list into native screening prefs. */
+export async function setCallAllowlist(numbers: string[]): Promise<void> {
+  await module.setCallAllowlist?.(numbers)
+}
+
+export async function getCallAllowlist(): Promise<string[]> {
+  return (await module.getCallAllowlist?.()) ?? []
+}
+
+export async function setIncomingCallPolicy(
+  policy: import('../native').IncomingCallPolicy
+): Promise<void> {
+  await module.setIncomingCallPolicy?.(policy)
+}
+
+export async function getIncomingCallPolicy(): Promise<
+  import('../native').IncomingCallPolicy | string
+> {
+  return (await module.getIncomingCallPolicy?.()) ?? 'allowlist_only'
+}
+
+export async function getBatteryLevel(): Promise<number> {
+  return (await module.getBatteryLevel?.()) ?? -1
+}
+
+export async function isEmergencyNumber(number: string): Promise<boolean> {
+  return (await module.isEmergencyNumber?.(number)) ?? false
+}
+
 export type { LockCapability }

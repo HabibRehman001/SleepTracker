@@ -32,7 +32,8 @@
           "color": "#3d7eff"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "./plugins/withDeviceAdmin"
     ],
     "experiments": {
       "typedRoutes": true
@@ -59,6 +60,7 @@
         "POST_NOTIFICATIONS",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
+        "FOREGROUND_SERVICE_SPECIAL_USE",
         "RECEIVE_BOOT_COMPLETED",
         "WAKE_LOCK"
       ],

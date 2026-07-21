@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-22 (after Step 156 — pre-lock countdown screen)
+Last updated: 2026-07-22 (after Step 165 — lock crash/recovery watchdog)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -838,7 +838,64 @@ keeps the pin. App hydrates from backend on launch.
 One-time ADB (cannot automate in-app). /device-owner-setup with copyable:
   adb shell dpm set-device-owner com.sleeptracker.sleeplock/.DeviceAdminReceiver
 SleepLockModule.isDeviceOwner(); home shows "✅ Full lock enabled" when true.
-Stubs: native/android-stubs/DeviceAdminReceiver.kt + device_admin.xml.
+Native sources (Step 158): native/android/ + plugins/withDeviceAdmin.js.
+
+----- 6.116 Device Admin native module (Step 158) -----
+Kotlin DeviceAdminReceiver + SleepLockModule (isDeviceOwner via DevicePolicyManager).
+Expo config plugin plugins/withDeviceAdmin.js:
+  - registers receiver in AndroidManifest (BIND_DEVICE_ADMIN + @xml/device_admin)
+  - copies native/android/*.kt + res/xml/device_admin.xml on prebuild
+  - adds SleepLockPackage() to MainApplication PackageList
+Verify after ADB: adb shell dumpsys device_policy → app is Device Owner.
+Test: npm run test:device-admin
+
+----- 6.117 Lock Task (kiosk) entry (Step 159) -----
+SleepLockModule.enableLock() (Device Owner only):
+  dpm.setLockTaskPackages(adminComponent, arrayOf(packageName))
+  activity.startLockTask()  // pins foreground; home/recents cannot exit
+Rejects with E_NOT_DEVICE_OWNER if not enrolled. Test: npm run test:lock-task
+On Device-Owner phone: enableLock → home/recents do not leave the app.
+
+----- 6.118 Locked full-screen UI (Step 160) -----
+/locked — calm night screen: large clock, “Sleep well.”, soft breathing orb.
+No nagging countdown / guilt copy. Home + countdown redirect here when locked;
+polls unlock → home. Soft-lock only: quiet hold-to-unlock (Device Owner: none).
+Test: npm run test:locked-screen
+
+----- 6.119 Block outgoing calls during lock (Step 161) -----
+SleepLockCallScreeningService — reject/silence screened calls while locked.
+Manifest via withDeviceAdmin (BIND_SCREENING_SERVICE).
+enableLock also adds UserManager.DISALLOW_OUTGOING_CALLS (Device Owner);
+disableLock clears it. Lock Task still primary: dialer can’t leave the app.
+Test: npm run test:call-screening
+
+----- 6.120 Incoming calls during lock — emergency allow-list (Step 162) -----
+CallScreeningService checks local favorites allow-list + policy:
+  (a) allowlist_only — only allow-list rings; others silenced
+  (b) decline_non_favorites — favorites ring; others auto-declined (log kept)
+Canned scenario: “Asleep — will call back.” Settings → /call-allowlist.
+Test: npm run test:incoming-call-policy
+
+----- 6.121 Exit Lock Task at wake (Step 163) -----
+disableLock() → Activity.stopLockTask() + clear DISALLOW_OUTGOING_CALLS.
+Same SCHEDULED_LOCK wake path as Step 153 (lockService.disableLock).
+If headless (no Activity), pending stop runs onHostResume.
+Test: npm run test:lock-task-exit — at wake, home/nav work again.
+
+----- 6.122 Emergency dial + low battery (Step 164) -----
+CallScreeningService always allows emergency digits / TelecomManager /
+PROPERTY_EMERGENCY_CALLBACK_MODE. DISALLOW_OUTGOING_CALLS does not block OS
+emergency dial (documented). Locked UI: calm low-battery hint ≤15%.
+Tests classify only — never dial real emergency numbers.
+Test: npm run test:emergency-edge-cases
+
+----- 6.123 Lock crash/recovery (Step 165) -----
+SleepLockWatchdogService — foreground, START_STICKY; while locked, relaunches
+Activity; SleepLockModule.onHostResume re-enters startLockTask().
+enableLock starts watchdog; disableLock stops it.
+Validate with `adb shell am kill` (process death). `am force-stop` marks the
+package stopped and blocks sticky restart on stock Android.
+Test: npm run test:lock-crash-recovery
 
 ----- 6.99 iOS Family Controls entitlement (Step 139) -----
 /family-controls-setup checklist + Apple request URL (cannot automate).
@@ -1033,6 +1090,45 @@ Tests (Backend):
 ================================================================================
 11. CHANGE LOG
 ================================================================================
+
+[2026-07-22] Step 165 — App crash/recovery while locked
+- SleepLockWatchdogService START_STICKY FGS; relaunch + re-enter Lock Task.
+- TESTED: npm run test:lock-crash-recovery.
+
+[2026-07-22] Step 164 — Emergency dial + low battery edge cases
+- EmergencyNumbers + screening allow-through; battery hint on /locked.
+- Classify-only tests (911/112/…); never dial real emergency numbers.
+- TESTED: npm run test:emergency-edge-cases; test:incoming-call-policy.
+
+[2026-07-22] Step 163 — Exit Lock Task Mode at wake time
+- disableLock(): stopLockTask() + clear outgoing restriction; pending stop on
+  resume if wake trigger is headless. Step 153 path unchanged (calls disableLock).
+- TESTED: npm run test:lock-task-exit; test:lock-task; test:scheduled-unlock.
+
+[2026-07-22] Step 162 — Incoming calls during lock (emergency allow-list)
+- IncomingCallGate + allow-list prefs; policies allowlist_only / decline_non_favorites.
+- /call-allowlist settings; favorites ring, others silent or auto-declined.
+- TESTED: npm run test:incoming-call-policy; test:call-screening.
+
+[2026-07-22] Step 161 — Block outgoing calls during lock
+- SleepLockCallScreeningService + SleepLockSession; DISALLOW_OUTGOING_CALLS on
+  enableLock / clear on disableLock; plugin registers BIND_SCREENING_SERVICE.
+- TESTED: npm run test:call-screening; test:device-admin; test:lock-task.
+
+[2026-07-22] Step 160 — Locked full-screen UI
+- /locked: clock, “Sleep well.”, BreathingOrb; redirects when isLocked.
+- Soft-lock hold-to-unlock only (not Device Owner). No countdown/guilt copy.
+- TESTED: npm run test:locked-screen.
+
+[2026-07-22] Step 159 — Lock Task (kiosk) Mode entry
+- enableLock(): setLockTaskPackages + Activity.startLockTask() (Device Owner).
+- TESTED: npm run test:lock-task; test:device-admin.
+
+[2026-07-22] Step 158 — Device Admin / Device Owner native module
+- native/android: DeviceAdminReceiver.kt, SleepLockModule.kt, SleepLockPackage.kt,
+  res/xml/device_admin.xml; plugins/withDeviceAdmin.js wired in app.json.
+- isDeviceOwner() → DevicePolicyManager.isDeviceOwnerApp; dumpsys verify cmd.
+- TESTED: npm run test:device-admin; test:device-owner-setup; test:native-lock.
 
 [2026-07-22] Reports — Excel (.xlsx) export button
 - GET /api/export/xlsx (+ /excel alias); Export panel “Excel” → sleep-export-YYYY-MM.xlsx.

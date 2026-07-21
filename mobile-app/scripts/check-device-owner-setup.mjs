@@ -12,8 +12,8 @@ const screen = readFileSync(join(root, 'app/device-owner-setup.tsx'), 'utf8')
 const layout = readFileSync(join(root, 'app/_layout.tsx'), 'utf8')
 const setHome = readFileSync(join(root, 'app/set-home.tsx'), 'utf8')
 const index = readFileSync(join(root, 'app/index.tsx'), 'utf8')
-const stub = readFileSync(
-  join(root, 'native/android-stubs/DeviceAdminReceiver.kt'),
+const receiver = readFileSync(
+  join(root, 'native/android/DeviceAdminReceiver.kt'),
   'utf8'
 )
 
@@ -29,7 +29,8 @@ assert.match(index, /device-owner-setup|open-device-owner-setup/)
 assert.match(index, /full-lock-enabled-badge|FULL_LOCK_ENABLED_LABEL/)
 assert.doesNotMatch(index, /!deviceOwnerSetupDone/)
 assert.match(screen, /soft lock|optional/i)
-assert.match(stub, /DeviceAdminReceiver/)
+assert.match(receiver, /DeviceAdminReceiver/)
+assert.ok(existsSync(join(root, 'plugins/withDeviceAdmin.js')))
 assert.match(
   DEVICE_OWNER_ADB_COMMAND,
   /com\.sleeptracker\.sleeplock\/\.DeviceAdminReceiver/

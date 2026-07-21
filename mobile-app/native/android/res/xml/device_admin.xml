@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  @deprecated Step 158 — real file: native/android/res/xml/device_admin.xml
-  Injected by plugins/withDeviceAdmin.js during prebuild.
--->
+<!-- Policies for Sleep Lock Device Owner (Step 158). Copied by withDeviceAdmin. -->
 <device-admin xmlns:android="http://schemas.android.com/apk/res/android">
   <uses-policies>
     <force-lock />

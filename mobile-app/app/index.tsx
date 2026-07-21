@@ -216,6 +216,10 @@ export default function HomeScreen() {
     return <Redirect href="/lock-countdown" />
   }
 
+  if (ready && isLocked) {
+    return <Redirect href="/locked" />
+  }
+
   const toggle = async () => {
     setBusy(true)
     setLastError(null)
