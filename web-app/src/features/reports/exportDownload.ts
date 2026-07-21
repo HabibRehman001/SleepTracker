@@ -2,7 +2,7 @@
  * Step 108 — Export download helpers (blob: URL + temporary <a>).
  */
 
-export type ExportFormat = 'csv' | 'json' | 'md' | 'pdf'
+export type ExportFormat = 'csv' | 'json' | 'md' | 'pdf' | 'xlsx'
 
 export const EXPORT_API_BASE = 'http://localhost:4000/api/export'
 
@@ -26,6 +26,8 @@ export function exportApiPath(format: ExportFormat, month: string): string {
       return `${EXPORT_API_BASE}/markdown${qs}`
     case 'pdf':
       return `${EXPORT_API_BASE}/pdf${qs}`
+    case 'xlsx':
+      return `${EXPORT_API_BASE}/xlsx${qs}`
   }
 }
 

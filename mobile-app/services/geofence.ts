@@ -36,7 +36,7 @@ export function isInsideHomeGeofence(
 
 /**
  * Last known “inside home geofence” flag.
- * Step 174 geofence task updates this; MOTION_SAMPLE stamps it onto samples.
+ * Step 174/175 geofence task updates this; enter → recordHomeArrival (Step 155).
  */
 let lastInsideHomeGeofence: boolean | null = null
 

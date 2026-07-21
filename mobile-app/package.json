@@ -32,7 +32,14 @@
     "test:baseline-detection": "npx tsx scripts/check-baseline-detection.mjs",
     "test:failed-detection": "npx tsx scripts/check-failed-detection.mjs",
     "test:baseline-results": "npx tsx scripts/check-baseline-results.mjs",
-    "test:baseline-adjustment": "npx tsx scripts/check-baseline-adjustment.mjs"
+    "test:baseline-adjustment": "npx tsx scripts/check-baseline-adjustment.mjs",
+    "test:lock-schedule": "npx tsx scripts/check-lock-schedule.mjs",
+    "test:schedule-change": "npx tsx scripts/check-schedule-change.mjs",
+    "test:scheduled-lock": "npx tsx scripts/check-scheduled-lock.mjs",
+    "test:scheduled-unlock": "npx tsx scripts/check-scheduled-unlock.mjs",
+    "test:pre-lock-warning": "npx tsx scripts/check-pre-lock-warning.mjs",
+    "test:late-arrival": "npx tsx scripts/check-late-arrival.mjs",
+    "test:lock-countdown": "npx tsx scripts/check-lock-countdown.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.6",

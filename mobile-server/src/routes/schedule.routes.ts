@@ -2,6 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import {
   createSchedule,
   getSchedule,
+  requestScheduleChange,
   ScheduleConflictError,
   ScheduleNotFoundError,
 } from '../services/schedule.service'
@@ -18,8 +19,38 @@ function asyncHandler(
 
 /**
  * POST /schedule — only once (Step 128 / 150). Second POST → 409.
- * GET /schedule — current locked schedule.
+ * POST /schedule/change-request — 24h delayed override (Step 151).
+ * GET /schedule — current locked schedule (+ pending / enforced).
  */
+router.post(
+  '/change-request',
+  asyncHandler(async (req, res) => {
+    const body = req.body as Record<string, unknown>
+    if (!body?.sleepTime || !body?.wakeTime) {
+      res.status(400).json({ message: 'sleepTime and wakeTime are required' })
+      return
+    }
+    try {
+      const schedule = await requestScheduleChange({
+        sleepTime: String(body.sleepTime),
+        wakeTime: String(body.wakeTime),
+      })
+      res.status(201).json(schedule)
+    } catch (err) {
+      if (err instanceof ScheduleConflictError) {
+        res.status(409).json({ message: err.message })
+        return
+      }
+      if (err instanceof ScheduleNotFoundError) {
+        res.status(404).json({ message: err.message })
+        return
+      }
+      const message = err instanceof Error ? err.message : 'Invalid change request'
+      res.status(400).json({ message })
+    }
+  })
+)
+
 router.post(
   '/',
   asyncHandler(async (req, res) => {
@@ -32,7 +63,8 @@ router.post(
       const schedule = await createSchedule({
         sleepTime: String(body.sleepTime),
         wakeTime: String(body.wakeTime),
-        lock: body.lock !== false,
+        lockedAt:
+          body.lockedAt != null ? (body.lockedAt as string | Date) : new Date(),
       })
       res.status(201).json(schedule)
     } catch (err) {

@@ -17,6 +17,9 @@ export {
   registerMotionSampleTask,
   unregisterMotionSampleTask,
   isMotionSampleTaskRegistered,
+  registerScheduledLockTask,
+  unregisterScheduledLockTask,
+  isScheduledLockTaskRegistered,
 } from './backgroundTasks'
 export {
   computeMagnitude,
@@ -65,6 +68,42 @@ export {
   type NotificationPermissionResult,
 } from './notifications'
 export {
+  PRE_LOCK_WARNING_BODY,
+  decidePreLockWarning,
+  minutesUntilSleep,
+  nextSleepOccurrenceId,
+  runPreLockWarningOnce as runPreLockWarningOncePure,
+} from './preLockWarningMath'
+export {
+  runPreLockWarningOnce,
+  PRE_LOCK_WARNED_STORAGE_KEY,
+} from './preLockWarning'
+export {
+  ARRIVAL_GRACE_PERIOD_MS,
+  computeEffectiveLockTime,
+  isInEffectiveSleepWindow,
+  resolveWakeAfter,
+  effectiveLockOccurrenceId,
+} from './lateArrivalMath'
+export {
+  formatCountdown,
+  shouldShowLockCountdown,
+  LOCK_COUNTDOWN_MAX_MINUTES,
+} from './lockCountdownMath'
+export {
+  dismissLockCountdownThisSession,
+  isLockCountdownDismissedThisSession,
+  resetLockCountdownSession,
+} from './lockCountdownSession'
+export {
+  recordHomeArrival,
+  getHomeArrivalTime,
+  loadHomeArrivalTime,
+  persistHomeArrival,
+  applyHomeGeofenceTransition,
+  syncHomeArrivalFromGeofenceEnter,
+} from './homeArrival'
+export {
   fetchHomeLocation,
   saveHomeLocation,
   type HomeLocation,
@@ -76,6 +115,15 @@ export {
   type PermissionTone,
 } from './permissionsStatus'
 export { MOBILE_API_BASE, mobileFetch, ApiError } from './api'
+export { fetchSchedule, lockSchedule, requestScheduleChange, type LockedSchedule } from './scheduleApi'
+export {
+  SCHEDULE_CHANGE_DELAY_MS,
+  SCHEDULE_CHANGE_EFFECT_MESSAGE,
+  computePendingEffectiveAt,
+  isPendingChangeActive,
+  isPendingChangeDue,
+  resolveEnforcedSchedule,
+} from './scheduleChange'
 export {
   findLongestStaticWindow,
   findLongestSleepWindow,
@@ -115,3 +163,15 @@ export {
   manualNightToWindow,
   isValidHHMM,
 } from './nightDetection'
+export {
+  decideScheduledLock,
+  isInSleepWindow,
+  runScheduledLockOnce,
+  SCHEDULED_LOCK_INTERVAL_SECONDS,
+} from './scheduledLockMath'
+export {
+  persistEnforcedSchedule,
+  loadEnforcedSchedule,
+  runScheduledLockOnce as runScheduledLockWithNative,
+} from './scheduledLock'
+export { syncScheduledLockTrigger } from './syncScheduledLock'

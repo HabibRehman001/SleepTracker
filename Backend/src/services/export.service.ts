@@ -158,6 +158,49 @@ export function sleepEntriesToCsv(entries: SleepEntryWithRelations[]): string {
   return CSV_UTF8_BOM + [headerLine, ...rows].join('\r\n')
 }
 
+/**
+ * Excel workbook (.xlsx) — same flattened columns as CSV, one row per night.
+ */
+export async function sleepEntriesToXlsx(
+  entries: SleepEntryWithRelations[]
+): Promise<Buffer> {
+  const mod = await import('exceljs')
+  const ExcelJS = (mod as { default?: typeof mod }).default ?? mod
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'SleepTracker'
+  workbook.created = new Date()
+  const sheet = workbook.addWorksheet('Sleep export', {
+    views: [{ state: 'frozen', ySplit: 1 }],
+  })
+
+  sheet.addRow([...CSV_EXPORT_HEADERS])
+  const header = sheet.getRow(1)
+  header.font = { bold: true }
+
+  for (const entry of entries) {
+    const flat = flattenSleepEntry(entry)
+    sheet.addRow(
+      CSV_EXPORT_HEADERS.map((key) => {
+        const v = flat[key]
+        if (v === null || v === undefined) return ''
+        return v
+      })
+    )
+  }
+
+  sheet.columns.forEach((col) => {
+    let max = 10
+    col.eachCell?.({ includeEmpty: true }, (cell) => {
+      const len = String(cell.value ?? '').length
+      if (len > max) max = Math.min(len, 40)
+    })
+    col.width = max + 2
+  })
+
+  const buf = await workbook.xlsx.writeBuffer()
+  return Buffer.from(buf)
+}
+
 /** Parse a CSV produced by {@link sleepEntriesToCsv} (for tests). */
 export function parseExportCsv(csv: string): {
   headers: string[]
@@ -504,7 +547,7 @@ export function sleepEntriesToMarkdown(
   return `${header}${body}\n`
 }
 
-export type ExportFormat = 'csv' | 'json' | 'md' | 'pdf'
+export type ExportFormat = 'csv' | 'json' | 'md' | 'pdf' | 'xlsx'
 
 /** Step 108 — download basename, e.g. sleep-export-2026-07.csv */
 export function buildExportFilename(
@@ -573,6 +616,22 @@ export const exportService = {
     return {
       ...result,
       filename: buildExportFilename('pdf', result.month),
+    }
+  },
+
+  /** Excel spreadsheet (.xlsx) — flattened nights for Sheets/Excel. */
+  async exportXlsx(month?: string): Promise<{
+    buffer: Buffer
+    filename: string
+    month: string
+  }> {
+    const entries = await loadEntries(month)
+    const resolvedMonth = month ?? format(new Date(), 'yyyy-MM')
+    const buffer = await sleepEntriesToXlsx(entries)
+    return {
+      buffer,
+      month: resolvedMonth,
+      filename: buildExportFilename('xlsx', resolvedMonth),
     }
   },
 }

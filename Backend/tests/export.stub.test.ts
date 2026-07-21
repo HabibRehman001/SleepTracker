@@ -15,6 +15,7 @@ import {
   sleepEntriesToCsv,
   sleepEntriesToJsonExport,
   sleepEntriesToMarkdown,
+  sleepEntriesToXlsx,
   sleepEntryToMarkdown,
 } from '../src/services/export.service'
 import { buildQualityChartPng } from '../src/services/pdf/qualityChartPng'
@@ -90,6 +91,22 @@ export async function runExportStubTests(): Promise<boolean> {
           entries.length,
           'exportCsv row count'
         )
+      }
+    )
+  )
+
+  results.push(
+    await runTest(
+      'Excel: xlsx workbook with same flattened columns as CSV',
+      async () => {
+        const entries = await sleepEntryRepository.findAll()
+        assert(entries.length >= 1, 'need at least one night')
+        const buf = await sleepEntriesToXlsx(entries.slice(0, 3))
+        assertEqual(buf.subarray(0, 2).toString('utf8'), 'PK', 'zip/xlsx magic')
+        assert(buf.length > 500, 'non-trivial workbook')
+        const viaService = await exportService.exportXlsx()
+        assertEqual(viaService.buffer.subarray(0, 2).toString('utf8'), 'PK', 'service zip magic')
+        assert(viaService.filename.endsWith('.xlsx'), 'xlsx filename')
       }
     )
   )

@@ -12,6 +12,8 @@
     "test:schemas": "npx tsx scripts/check-schemas.mjs",
     "test:sessions": "npx tsx scripts/check-sessions-api.mjs",
     "test:schedule": "npx tsx scripts/check-schedule-api.mjs",
+    "test:lock-schedule": "npx tsx scripts/check-lock-schedule.mjs",
+    "test:schedule-change": "npx tsx scripts/check-schedule-change.mjs",
     "test:monthly-stats": "npx tsx scripts/check-monthly-stats.mjs",
     "test:comparison": "npx tsx scripts/check-comparison.mjs",
     "test:lan-only": "npx tsx scripts/check-lan-only.mjs",

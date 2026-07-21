@@ -46,6 +46,7 @@ export function AnalyticsPage() {
     useInsights(range)
 
   const durationLimit = durationLimitForRange(range, entries.length)
+  const chartRangeLabel = range === 'all' ? 'all' : range
   const durationTitle =
     range === 'all'
       ? 'Sleep duration (all time)'
@@ -61,6 +62,8 @@ export function AnalyticsPage() {
     insightsFetching
 
   const noDataYet = !entriesLoading && allEntries.length === 0
+  /** Correlations need ≥3 nights per group; sparse windows look “empty”. */
+  const sparseRange = !entriesLoading && entries.length > 0 && entries.length < 3
 
   return (
     <div
@@ -74,9 +77,20 @@ export function AnalyticsPage() {
           <p className="text-muted-foreground text-sm">
             {entriesLoading
               ? 'loading…'
-              : `${entries.length} nights in range`}
+              : `${entries.length} night${entries.length === 1 ? '' : 's'} in range`}
             {chartsBusy && !entriesLoading ? ' · updating…' : null}
           </p>
+          {sparseRange ? (
+            <p
+              className="text-muted-foreground mt-1 text-xs"
+              data-testid="analytics-sparse-hint"
+            >
+              Only {entries.length} logged night
+              {entries.length === 1 ? '' : 's'} in this window — insights and
+              correlations need more nights (try 30d / 90d, or log the missing
+              days).
+            </p>
+          ) : null}
         </div>
         <DateRangeFilter value={range} onChange={setRange} />
       </div>
@@ -99,7 +113,11 @@ export function AnalyticsPage() {
             <h2 className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
               Charts
             </h2>
-            <DashboardCharts entries={entries} />
+            <DashboardCharts
+              entries={entries}
+              limit={durationLimit}
+              rangeLabel={chartRangeLabel}
+            />
             <SleepDurationChart
               entries={entries}
               title={durationTitle}

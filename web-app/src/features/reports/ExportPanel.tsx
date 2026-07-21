@@ -16,6 +16,7 @@ const FORMATS: { format: ExportFormat; label: string }[] = [
   { format: 'json', label: 'JSON' },
   { format: 'md', label: 'Markdown' },
   { format: 'pdf', label: 'PDF' },
+  { format: 'xlsx', label: 'Excel' },
 ]
 
 export type ExportPanelProps = {
@@ -64,7 +65,7 @@ export function ExportPanel({ defaultMonth, className }: ExportPanelProps) {
           Export
         </h2>
         <p className="text-muted-foreground mt-1 text-sm">
-          Pick a month, then download CSV, JSON, Markdown, or PDF.
+          Pick a month, then download CSV, JSON, Markdown, PDF, or Excel.
         </p>
       </div>
 

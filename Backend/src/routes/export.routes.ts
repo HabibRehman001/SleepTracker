@@ -124,6 +124,43 @@ router.get(
 )
 
 router.get(
+  '/xlsx',
+  asyncHandler(async (req, res) => {
+    const month = parseMonthQuery(req.query.month)
+    if (req.query.month != null && req.query.month !== '' && month == null) {
+      res.status(400).json({ message: 'month must be yyyy-MM' })
+      return
+    }
+    const { buffer, filename } = await exportService.exportXlsx(month)
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.status(200).send(buffer)
+  })
+)
+
+/** Alias — same as /xlsx */
+router.get(
+  '/excel',
+  asyncHandler(async (req, res) => {
+    const month = parseMonthQuery(req.query.month)
+    if (req.query.month != null && req.query.month !== '' && month == null) {
+      res.status(400).json({ message: 'month must be yyyy-MM' })
+      return
+    }
+    const { buffer, filename } = await exportService.exportXlsx(month)
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.status(200).send(buffer)
+  })
+)
+
+router.get(
   '/sleep-entries.csv',
   asyncHandler(async (req, res) => {
     const month = parseMonthQuery(req.query.month)

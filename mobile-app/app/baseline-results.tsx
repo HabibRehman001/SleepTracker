@@ -21,12 +21,7 @@ export default function BaselineResultsScreen() {
   const detectedBedtime = useBaselineStore((s) => s.detectedBedtime)
   const detectedWaketime = useBaselineStore((s) => s.detectedWaketime)
   const baselineReady = useBaselineStore((s) => s.baselineReady)
-  const markBaselineResultsSeen = useBaselineStore(
-    (s) => s.markBaselineResultsSeen
-  )
-
   const setSchedule = useScheduleStore((s) => s.setSchedule)
-  const lockIn = useScheduleStore((s) => s.lockIn)
   const lockedIn = useScheduleStore((s) => s.lockedIn)
 
   const seedBed = detectedBedtime ?? '04:00'
@@ -54,7 +49,7 @@ export default function BaselineResultsScreen() {
   // Live preview from local nudge state (not frozen detected averages).
   const preview = liveSchedulePreview(bedtime, waketime, seedBed, seedWake)
 
-  const confirmLockIn = () => {
+  const goToLockConfirm = () => {
     const bed = bedtime.trim()
     const wake = waketime.trim()
     if (!isValidHHMM(bed) || !isValidHHMM(wake)) {
@@ -62,10 +57,12 @@ export default function BaselineResultsScreen() {
       return
     }
     setError(null)
+    // Draft only — permanent lock happens on hold-to-confirm (Step 150).
     setSchedule(bed, wake)
-    lockIn()
-    markBaselineResultsSeen()
-    router.replace('/')
+    router.push({
+      pathname: '/lock-schedule',
+      params: { sleepTime: bed, wakeTime: wake },
+    })
   }
 
   if (!baselineReady && !lockedIn) {
@@ -187,7 +184,7 @@ export default function BaselineResultsScreen() {
 
       <Pressable
         className="bg-primary py-4 rounded-lg items-center"
-        onPress={confirmLockIn}
+        onPress={goToLockConfirm}
         testID="baseline-lock-in"
       >
         <Text className="text-primary-foreground text-base font-semibold">

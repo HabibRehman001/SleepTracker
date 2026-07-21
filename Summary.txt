@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-21 (after Step 148 — one-round baseline adjustment)
+Last updated: 2026-07-22 (after Step 156 — pre-lock countdown screen)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -891,6 +891,44 @@ Detected bed/wake is a suggestion. Adjust keeps a live preview
 “Sleep 4:00 AM → Wake 11:30 AM” immediately. Last edit before lock-in
 (immutability hardened in Step 150).
 
+----- 6.109 Lock schedule immutable (Step 150) -----
+POST /schedule once with lockedAt; second POST → 409 “Schedule already locked”.
+Client lockSchedule(GET then POST). /lock-schedule: “This cannot be changed
+later. Are you sure?” + hold-to-confirm (not a tap). /settings shows schedule
+as read-only text (no TextInput). Local store rejects setSchedule after lockIn.
+
+----- 6.110 Delayed schedule change request (Step 151) -----
+POST /schedule/change-request — rare override with 24h delay.
+Message: “Your new schedule will take effect in 24 hours”.
+resolveEnforcedSchedule keeps old sleep/wake until pendingEffectiveAt.
+/request-schedule-change + Settings pending banner; hold-to-request.
+
+----- 6.111 Scheduled lock trigger (Step 152) -----
+SCHEDULED_LOCK expo-background-fetch (~15 min): compares local clock to
+enforced sleepTime; when in sleep window → SleepLockModule.enableLock().
+Schedule persisted to AsyncStorage for the background isolate.
+Test: advancing clock into sleep window enables within one fetch cycle
+(iOS ~15m; Android nearer-immediate once Step 158 FGS).
+
+----- 6.112 Scheduled unlock trigger (Step 153) -----
+Same SCHEDULED_LOCK task: past wakeTime (outside sleep window) while locked
+→ disableLock() with no user action. Test: clock past wake unlocks automatically.
+
+----- 6.113 Pre-lock warning notification (Step 154) -----
+Within 30 minutes of sleepTime and not yet locked → local notification
+“Phone locks in 30 minutes”. Deduped per sleep occurrence (AsyncStorage) so
+background-fetch does not spam. Scenario: arrive home 4:30, sleep 5:00 → one alert.
+
+----- 6.114 Late arrival lock shift (Step 155) -----
+lockTime = max(scheduledSleepTime, homeArrivalTime + 30m grace).
+Geofence “arrived home” (recordHomeArrival / Step 175) feeds homeArrivalTime.
+Still commuting at scheduled sleep → no lock. 4:30 arrival → warn 4:30 / lock 5:00.
+
+----- 6.115 Pre-lock countdown screen (Step 156) -----
+/lock-countdown — full-screen timer when the app opens inside the 30-min warning
+window. Sets expectation before Soft Lock engages; optional “I’ll wind down”
+dismiss for soft-lock UX (session only).
+
 ================================================================================
 7. API REFERENCE (current)
 ================================================================================
@@ -904,6 +942,7 @@ POST /sessions                 create ActivitySession (JSON body)
 GET  /sessions?range=30d       list sessions (7d|30d|90d|all; default 30d)
      (also mounted at /api/sessions)
 POST /schedule                 create schedule once (409 if exists)
+POST /schedule/change-request  request delayed change (24h; Step 151)
 GET  /schedule                 get current schedule (404 if none)
      (also mounted at /api/schedule)
 GET  /stats/monthly?limit=12   monthly agg: duration, bed/wake, consistency
@@ -935,6 +974,8 @@ GET  /api/stats/summary              dashboard window stats (7/30 day)
 GET  /api/reports/compare            this month vs last (metrics + up/down tones)
                                      optional ?month=yyyy-MM
 GET  /api/export/csv                 flattened CSV (?month=yyyy-MM → sleep-export-…)
+GET  /api/export/xlsx                Excel .xlsx (?month=yyyy-MM → sleep-export-…)
+GET  /api/export/excel               alias of /xlsx
 GET  /api/export/json                nested JSON (?month=yyyy-MM)
 GET  /api/export/markdown            Markdown daily log (?month=yyyy-MM)
 GET  /api/export/md                  alias of /markdown
@@ -992,6 +1033,47 @@ Tests (Backend):
 ================================================================================
 11. CHANGE LOG
 ================================================================================
+
+[2026-07-22] Reports — Excel (.xlsx) export button
+- GET /api/export/xlsx (+ /excel alias); Export panel “Excel” → sleep-export-YYYY-MM.xlsx.
+- exceljs workbook with same flattened columns as CSV.
+- TESTED: Backend export stub + web-app check-export-buttons.
+
+[2026-07-22] Step 156 — In-app pre-lock countdown screen
+- /lock-countdown full-screen timer; home redirects when inside 30-min warning window.
+- formatCountdown + shouldShowLockCountdown; soft dismiss for session.
+- TESTED: npm run test:lock-countdown; tsc --noEmit.
+
+[2026-07-22] Step 155 — Late arrival lock shift
+- lockTime = max(scheduledSleep, homeArrival + 30m); no lock while still out.
+- 4:30 arrival → warn at 4:30, lock at 5:00 (not original 4:00).
+- recordHomeArrival stub for Step 175 geofence enter.
+- TESTED: npm run test:late-arrival; test:pre-lock-warning; test:scheduled-lock; tsc.
+
+[2026-07-22] Step 154 — Pre-lock warning notification
+- Within 30m of sleepTime + unlocked → “Phone locks in 30 minutes” once per occurrence.
+- Wired into SCHEDULED_LOCK; dedupe via AsyncStorage occurrence id.
+- TESTED: npm run test:pre-lock-warning; test:notification-permissions; tsc.
+
+[2026-07-22] Step 153 — Scheduled unlock trigger
+- Same SCHEDULED_LOCK task: past wakeTime → disableLock() (no user action).
+- TESTED: npm run test:scheduled-unlock; test:scheduled-lock; tsc --noEmit.
+
+[2026-07-22] Step 152 — Scheduled lock trigger
+- SCHEDULED_LOCK background-fetch: clock vs sleepTime → enableLock().
+- persistEnforcedSchedule + syncScheduledLockTrigger after lock / home mount.
+- TESTED: npm run test:scheduled-lock; tsc --noEmit.
+
+[2026-07-22] Step 151 — Delayed schedule change request (24h)
+- POST /schedule/change-request; message “Your new schedule will take effect in 24 hours”.
+- Old sleep/wake stay enforced until pendingEffectiveAt; /request-schedule-change UI.
+- TESTED: npm run test:schedule-change (app + server); test:lock-schedule; tsc.
+
+[2026-07-22] Step 150 — Lock schedule (immutable)
+- lockSchedule client: GET then POST with lockedAt; second create → 409.
+- /lock-schedule hold-to-confirm; /settings read-only sleep/wake text.
+- Mongoose blocks updates after lock; scheduleStore.setSchedule no-op when locked.
+- TESTED: npm run test:lock-schedule (app + server); test:schedule; test:stores; tsc.
 
 [2026-07-21] Step 148 — One round of manual baseline adjustment
 - liveSchedulePreview: nudge wake 12:00→11:30 updates preview immediately.

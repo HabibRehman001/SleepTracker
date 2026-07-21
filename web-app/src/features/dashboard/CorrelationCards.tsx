@@ -39,7 +39,8 @@ export function CorrelationCards({
   if (!correlations?.length) {
     return (
       <p className="text-muted-foreground text-sm" data-testid="correlation-cards">
-        No correlation data yet.
+        No correlations yet — need at least 3 nights in each group for the
+        selected range.
       </p>
     )
   }

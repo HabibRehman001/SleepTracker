@@ -5,14 +5,18 @@ import {
   classifyNotificationPermission,
   type NotificationPermissionPhase,
 } from './notificationPermissionPhase'
+import {
+  LOCK_WARNING_MINUTES,
+  PRE_LOCK_WARNING_BODY,
+  PRE_LOCK_WARNING_TITLE,
+} from './preLockWarningMath'
 
 export {
   classifyNotificationPermission,
   type NotificationPermissionPhase,
 } from './notificationPermissionPhase'
 
-/** Lead time for the pre-lock heads-up (Step 136). */
-export const LOCK_WARNING_MINUTES = 30
+export { LOCK_WARNING_MINUTES, PRE_LOCK_WARNING_BODY, PRE_LOCK_WARNING_TITLE }
 
 export const NOTIFICATION_PURPOSE = `Sleep Lock needs notifications to alert you when the phone will lock in ${LOCK_WARNING_MINUTES} minutes.`
 
@@ -62,7 +66,7 @@ export async function getNotificationPermissionSnapshot(): Promise<NotificationP
 }
 
 /**
- * Schedule (or refresh) the "phone will lock in 30 minutes" local notification.
+ * Schedule (or refresh) the pre-lock heads-up for a known future lockAt.
  * Call once a lock window is known; no-ops if permission not granted.
  */
 export async function scheduleLockWarningNotification(
@@ -76,8 +80,8 @@ export async function scheduleLockWarningNotification(
 
   return Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Sleep Lock',
-      body: `Phone will lock in ${LOCK_WARNING_MINUTES} minutes.`,
+      title: PRE_LOCK_WARNING_TITLE,
+      body: PRE_LOCK_WARNING_BODY,
       sound: true,
     },
     trigger: {

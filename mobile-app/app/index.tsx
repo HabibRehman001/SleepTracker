@@ -1,5 +1,5 @@
 import { Link, Redirect } from 'expo-router'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 
 import {
@@ -10,6 +10,10 @@ import {
 } from '../native'
 import * as lockService from '../services/lockService'
 import { registerMotionSampleTask } from '../services/backgroundTasks'
+import { loadHomeArrivalTime } from '../services/homeArrival'
+import { shouldShowLockCountdown } from '../services/lockCountdownMath'
+import { isLockCountdownDismissedThisSession } from '../services/lockCountdownSession'
+import { syncScheduledLockTrigger } from '../services/syncScheduledLock'
 import { useAuthStore } from '../store/authStore'
 import { useAppStore } from '../store/useAppStore'
 import { useBaselineStore } from '../store/baselineStore'
@@ -58,6 +62,11 @@ export default function HomeScreen() {
   const setReady = useLockStateStore((s) => s.setReady)
   const setLastError = useLockStateStore((s) => s.setLastError)
 
+  /** null = still resolving pre-lock countdown gate (Step 156). */
+  const [countdownRedirect, setCountdownRedirect] = useState<boolean | null>(
+    null
+  )
+
   useEffect(() => {
     void hydrateAuth()
   }, [hydrateAuth])
@@ -68,6 +77,45 @@ export default function HomeScreen() {
       console.warn('[MOTION_SAMPLE] register failed', err)
     })
   }, [motionSetupDone])
+
+  useEffect(() => {
+    if (!scheduleLockedIn) return
+    void syncScheduledLockTrigger().catch((err: unknown) => {
+      console.warn('[SCHEDULED_LOCK] sync failed', err)
+    })
+  }, [scheduleLockedIn])
+
+  useEffect(() => {
+    if (!scheduleLockedIn || !ready) {
+      setCountdownRedirect(false)
+      return
+    }
+    if (isLocked) {
+      setCountdownRedirect(false)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      const arrival = await loadHomeArrivalTime()
+      const enforced = useScheduleStore.getState().getEnforcedTimes()
+      if (!enforced) {
+        if (!cancelled) setCountdownRedirect(false)
+        return
+      }
+      const gate = shouldShowLockCountdown({
+        now: new Date(),
+        scheduledSleepHHMM: enforced.bedtime,
+        homeArrivalTime: arrival,
+        scheduleLockedIn: true,
+        currentlyLocked: isLocked,
+        dismissedThisSession: isLockCountdownDismissedThisSession(),
+      })
+      if (!cancelled) setCountdownRedirect(gate.show)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [scheduleLockedIn, isLocked, ready])
 
   useEffect(() => {
     lockService.configureLockService()
@@ -154,6 +202,18 @@ export default function HomeScreen() {
     !pendingManualEntry
   ) {
     return <Redirect href="/baseline-results" />
+  }
+
+  if (scheduleLockedIn && countdownRedirect === null) {
+    return (
+      <View className="bg-background flex-1 items-center justify-center">
+        <ActivityIndicator color="#fafafa" />
+      </View>
+    )
+  }
+
+  if (countdownRedirect) {
+    return <Redirect href="/lock-countdown" />
   }
 
   const toggle = async () => {
@@ -287,6 +347,13 @@ export default function HomeScreen() {
         <Pressable className="px-4 py-2.5" testID="open-permissions-status">
           <Text className="text-sidebar-primary text-[15px] font-medium">
             Permissions status
+          </Text>
+        </Pressable>
+      </Link>
+      <Link href="/settings" asChild>
+        <Pressable className="px-4 py-2.5" testID="open-settings">
+          <Text className="text-sidebar-primary text-[15px] font-medium">
+            Settings
           </Text>
         </Pressable>
       </Link>

@@ -92,9 +92,8 @@ export default function NotificationPermissionScreen() {
             {NOTIFICATION_PURPOSE}
           </Text>
           <Text className="text-muted-foreground text-[15px] leading-6 mb-8">
-            Example: “Phone will lock in {LOCK_WARNING_MINUTES} minutes.” You’ll
-            get that heads-up before Sleep Lock engages. You must allow to
-            continue.
+            Example: “Phone locks in {LOCK_WARNING_MINUTES} minutes.” You’ll get
+            that heads-up before Sleep Lock engages. You must allow to continue.
           </Text>
 
           <Pressable

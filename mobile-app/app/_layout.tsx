@@ -77,6 +77,22 @@ export default function RootLayout() {
           name="baseline-results"
           options={{ headerShown: false, animation: 'fade' }}
         />
+        <Stack.Screen
+          name="lock-schedule"
+          options={{ headerShown: false, animation: 'fade' }}
+        />
+        <Stack.Screen
+          name="lock-countdown"
+          options={{ headerShown: false, animation: 'fade', gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="settings"
+          options={{ title: 'Settings', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen
+          name="request-schedule-change"
+          options={{ headerShown: false, animation: 'fade' }}
+        />
       </Stack>
     </QueryClientProvider>
   )

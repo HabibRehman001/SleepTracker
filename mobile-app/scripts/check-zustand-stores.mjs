@@ -36,6 +36,7 @@ assert.equal(useScheduleStore.getState().bedtime, '23:00')
 assert.equal(useScheduleStore.getState().waketime, '07:00')
 useScheduleStore.getState().lockIn()
 assert.equal(useScheduleStore.getState().lockedIn, true)
+assert.ok(useScheduleStore.getState().lockedAt)
 useScheduleStore.getState().setSchedule('22:00', '06:00')
 assert.equal(useScheduleStore.getState().bedtime, '23:00', 'locked schedule immutable')
 

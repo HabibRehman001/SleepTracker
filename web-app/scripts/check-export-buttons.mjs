@@ -37,6 +37,7 @@ assert.match(panel, /format: 'csv'/)
 assert.match(panel, /format: 'json'/)
 assert.match(panel, /format: 'md'/)
 assert.match(panel, /format: 'pdf'/)
+assert.match(panel, /format: 'xlsx'|Excel/)
 assert.match(helpers, /createObjectURL/)
 assert.match(helpers, /createElement\('a'\)/)
 assert.match(helpers, /sleep-export-/)
@@ -45,10 +46,15 @@ assert.equal(buildExportFilename('csv', '2026-07'), 'sleep-export-2026-07.csv')
 assert.equal(buildExportFilename('json', '2026-07'), 'sleep-export-2026-07.json')
 assert.equal(buildExportFilename('md', '2026-07'), 'sleep-export-2026-07.md')
 assert.equal(buildExportFilename('pdf', '2026-07'), 'sleep-export-2026-07.pdf')
+assert.equal(buildExportFilename('xlsx', '2026-07'), 'sleep-export-2026-07.xlsx')
 
 assert.equal(
   exportApiPath('csv', '2026-07'),
   'http://localhost:4000/api/export/csv?month=2026-07'
+)
+assert.equal(
+  exportApiPath('xlsx', '2026-07'),
+  'http://localhost:4000/api/export/xlsx?month=2026-07'
 )
 
 // Simulate temporary <a> + blob: URL download for each format.
@@ -82,7 +88,7 @@ assert.equal(clicked.length, 1)
 assert.equal(clicked[0].download, 'sleep-export-2026-07.csv')
 assert.match(clicked[0].href, /^blob:/)
 
-const formats = ['csv', 'json', 'md', 'pdf']
+const formats = ['csv', 'json', 'md', 'pdf', 'xlsx']
 for (const format of formats) {
   clicked.length = 0
   const filename = await downloadExportFile(
@@ -109,7 +115,10 @@ assert.match(html, /export-btn-csv/)
 assert.match(html, /export-btn-json/)
 assert.match(html, /export-btn-md/)
 assert.match(html, /export-btn-pdf/)
+assert.match(html, /export-btn-xlsx/)
+assert.match(html, /Excel/)
 assert.match(html, /sleep-export-2026-07\.csv/)
 assert.match(html, /sleep-export-2026-07\.pdf/)
+assert.match(html, /sleep-export-2026-07\.xlsx/)
 
 console.log('Export buttons contract OK (blob downloads + sleep-export-YYYY-MM.*)')

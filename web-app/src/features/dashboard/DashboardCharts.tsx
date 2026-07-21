@@ -22,10 +22,10 @@ function durationHours(entry: SleepEntry): number | null {
   return Math.round((minutes / 60) * 100) / 100
 }
 
-function chartRows(entries: SleepEntry[]) {
+function chartRows(entries: SleepEntry[], limit: number) {
   return [...entries]
     .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-14)
+    .slice(-limit)
     .map((entry) => {
       const key = entryDateKey(entry)
       return {
@@ -37,14 +37,24 @@ function chartRows(entries: SleepEntry[]) {
     })
 }
 
-/** Sleep duration + quality charts (last 14 nights) via chart wrappers. */
-export function DashboardCharts({ entries }: { entries: SleepEntry[] }) {
-  const data = chartRows(entries)
+/** Sleep duration + quality line charts for the given night window. */
+export function DashboardCharts({
+  entries,
+  limit = 14,
+  rangeLabel = '14d',
+}: {
+  entries: SleepEntry[]
+  /** Max nights plotted (most recent). Default 14 for dashboard. */
+  limit?: number
+  /** Shown in chart titles, e.g. `7d` / `30d` / `14d`. */
+  rangeLabel?: string
+}) {
+  const data = chartRows(entries, limit)
 
   return (
     <div className={chartGridClassName} data-testid="dashboard-charts">
       <LineChartCard
-        title="Sleep duration (14d)"
+        title={`Sleep duration (${rangeLabel})`}
         data={data}
         xKey="date"
         series={[{ dataKey: 'hours', name: 'Hours' }]}
@@ -53,7 +63,7 @@ export function DashboardCharts({ entries }: { entries: SleepEntry[] }) {
         data-testid="duration-line-chart"
       />
       <LineChartCard
-        title="Sleep quality (14d)"
+        title={`Sleep quality (${rangeLabel})`}
         data={data}
         xKey="date"
         series={[{ dataKey: 'quality', name: 'Quality' }]}
