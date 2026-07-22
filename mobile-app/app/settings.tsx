@@ -249,6 +249,14 @@ export default function SettingsScreen() {
         </Pressable>
       </Link>
 
+      <Link href={'/monthly-report' as Href} asChild>
+        <Pressable className="py-3" testID="settings-open-monthly-report">
+          <Text className="text-sidebar-primary text-[15px] font-medium">
+            Monthly report
+          </Text>
+        </Pressable>
+      </Link>
+
       <Link href="/call-allowlist" asChild>
         <Pressable className="py-3" testID="settings-open-call-allowlist">
           <Text className="text-sidebar-primary text-[15px] font-medium">

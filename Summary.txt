@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-22 (Step 184 Activity screen)
+Last updated: 2026-07-22 (Step 189 Phase 1 JSON export)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -1050,6 +1050,31 @@ Contract: 90→walk, 130→jog, 170→run. npm run test:activity-classify.
 (Steps 181–182) + cadence classify (183). Links from home + Settings.
 TESTED: npm run test:activity-screen.
 
+----- 6.134 Month-end summary notification (Step 186) -----
+Local notification on the 1st of each month (~09:00): “Your sleep report for
+{previous month} is ready.” e.g. 1 July → June. syncMonthEndSummaryNotification
+after notification permission + on home launch (DATE trigger, rescheduled so
+the month name stays correct). npm run test:month-end-summary.
+
+----- 6.135 Monthly Report screen (Step 187) -----
+/monthly-report — mirrors Phase 1 Reports: this month vs last side-by-side with
+up/down indicators for avg bedtime, avg duration, consistency, step count.
+GET /stats/comparison (mobile-server). Green ↑ = improved. Links from home +
+Settings. npm run test:monthly-report.
+
+----- 6.136 Improvement verdict (Step 188) -----
+Weighted “Improved” from duration (0.35), bedtime adherence ±15 min of schedule
+(0.45 — quality proxy), steps (0.20). Returns driver metric in verdict.reason
+(“Improved — driven by bedtime adherence (±15 min)”).
+npm run test:improvement-verdict (server).
+
+----- 6.137 Phase 1 JSON export bridge (Step 189) -----
+GET /export/json (also /api/export/json) — ActivitySessions mapped to Phase 1
+Step 105 shape { format, exportedAt, entryCount, entries[] }. Optional
+?month=yyyy-MM. One entry per day (prefer locked-schedule); quality/mood/etc
+null; provenance in notes. Optional sync later — no forced merge.
+npm run test:phase1-export.
+
 ----- 6.115 Pre-lock countdown screen (Step 156) -----
 /lock-countdown — full-screen timer when the app opens inside the 30-min warning
 window. Sets expectation before Soft Lock engages; optional “I’ll wind down”
@@ -1080,6 +1105,8 @@ GET  /home-location            { home: dto | null } always 200 (no 404)
 GET  /lock-session             { session } account sleep-lock (auth required)
 PUT  /lock-session             { locked, unlockAt? } mirror lock across devices
      (also /api/lock-session)
+GET  /export/json              Phase 1 Step 105 JSON (?month=yyyy-MM)
+     (also /api/export/json)
 
 Phase 1 Backend (:4000):
 GET  /api/sleep-entries              all sleep entries + relations
@@ -1961,6 +1988,26 @@ Tests (Backend):
 - Moved verification out of ad-hoc scripts into tests/.
 - TESTED: npm test → ALL TESTS PASSED (5 analytics + 3 repository).
 - TESTED: npm run test:api → API SMOKE PASSED (4 endpoints).
+
+[2026-07-22] Step 189 — Phase 1 JSON export bridge
+- GET /export/json maps ActivitySessions → Step 105 { format, entries[] }.
+- Optional ?month=; day collapse prefers locked-schedule; notes carry steps/source.
+- TESTED: npm run test:phase1-export.
+
+[2026-07-22] Step 188 — Weighted “Improved” verdict
+- Bedtime adherence = nights within 15 min of scheduled sleep (no quality log).
+- Weights: duration 0.35 / adherence 0.45 / steps 0.20; verdict.driver + reason.
+- TESTED: npm run test:improvement-verdict; test:comparison; mobile test:monthly-report.
+
+[2026-07-22] Step 187 — Monthly Report screen
+- /monthly-report: this vs last month columns; bedtime, duration, consistency,
+  steps with ↑/↓ tones. Fetches GET /stats/comparison.
+- TESTED: npm run test:monthly-report; tsc --noEmit.
+
+[2026-07-22] Step 186 — Month-end summary notification
+- Schedules local notif on next 1st @ 09:00: “Your sleep report for June is ready.”
+- syncMonthEndSummaryNotification after grant + home; DATE trigger with prior-month name.
+- TESTED: npm run test:month-end-summary; tsc --noEmit.
 
 [2026-07-22] Step 184 — Activity screen (ring + 7-day + breakdown)
 - /activity: today steps + GitHub-style goal ring, 7-day bars, walk/jog/run min.

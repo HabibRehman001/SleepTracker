@@ -1,12 +1,18 @@
+import { Schedule } from '../models/Schedule'
 import {
   aggregateMonthlyStats,
   type MonthlyStats,
 } from './monthlyStats.service'
+import {
+  computeImprovementVerdict,
+  type ImprovementVerdict,
+} from './improvementVerdictMath'
 
 export type ComparisonDeltas = {
   sessionCount: number | null
   avgDurationMinutes: number | null
   consistencyScore: number | null
+  bedtimeAdherencePercent: number | null
   avgStepsCount: number | null
   /** Signed circular delta in minutes (positive = later). */
   avgBedTimeMinutes: number | null
@@ -16,9 +22,10 @@ export type ComparisonDeltas = {
 export type MonthComparison = {
   thisMonth: MonthlyStats
   lastMonth: MonthlyStats
-  /** True when a majority of higher-is-better metrics moved up. */
+  /** Weighted verdict (Step 188). */
   improved: boolean
   deltas: ComparisonDeltas
+  verdict: ImprovementVerdict
 }
 
 const MINUTES_PER_DAY = 24 * 60
@@ -47,6 +54,8 @@ export function emptyMonthStats(month: string): MonthlyStats {
     avgBedTime: null,
     avgWakeTime: null,
     consistencyScore: 0,
+    bedtimeAdherencePercent: null,
+    nightsOnSchedule: 0,
     avgStepsCount: null,
   }
 }
@@ -94,6 +103,10 @@ export function computeDeltas(
       thisMonth.consistencyScore,
       lastMonth.consistencyScore
     ),
+    bedtimeAdherencePercent: numericDelta(
+      thisMonth.bedtimeAdherencePercent,
+      lastMonth.bedtimeAdherencePercent
+    ),
     avgStepsCount: numericDelta(
       thisMonth.avgStepsCount,
       lastMonth.avgStepsCount
@@ -110,24 +123,25 @@ export function computeDeltas(
 }
 
 /**
- * Higher-is-better: duration, consistency, steps.
- * Improved when more of those deltas are positive than negative.
- * Flat / missing metrics do not count as votes.
+ * Step 188 — weighted improve using duration, bedtime adherence (±15 min),
+ * and steps (not raw stdev consistency / quality logs).
  */
 export function didImprove(deltas: ComparisonDeltas): boolean {
-  const votes: boolean[] = []
-  if (deltas.avgDurationMinutes != null && deltas.avgDurationMinutes !== 0) {
-    votes.push(deltas.avgDurationMinutes > 0)
-  }
-  if (deltas.consistencyScore != null && deltas.consistencyScore !== 0) {
-    votes.push(deltas.consistencyScore > 0)
-  }
-  if (deltas.avgStepsCount != null && deltas.avgStepsCount !== 0) {
-    votes.push(deltas.avgStepsCount > 0)
-  }
-  if (votes.length === 0) return false
-  const ups = votes.filter(Boolean).length
-  return ups > votes.length - ups
+  return computeImprovementVerdict({
+    durationDelta: deltas.avgDurationMinutes,
+    adherenceDelta: deltas.bedtimeAdherencePercent,
+    stepsDelta: deltas.avgStepsCount,
+  }).improved
+}
+
+export function buildVerdictFromDeltas(
+  deltas: ComparisonDeltas
+): ImprovementVerdict {
+  return computeImprovementVerdict({
+    durationDelta: deltas.avgDurationMinutes,
+    adherenceDelta: deltas.bedtimeAdherencePercent,
+    stepsDelta: deltas.avgStepsCount,
+  })
 }
 
 /**
@@ -141,17 +155,25 @@ export async function buildMonthComparison(
   const thisKey = month ?? utcMonthKey(now)
   const lastKey = previousUtcMonthKey(thisKey)
 
-  const months = await aggregateMonthlyStats(36)
+  const schedule = await Schedule.findOne().lean()
+  const scheduledSleepHHMM =
+    schedule && typeof schedule.sleepTime === 'string'
+      ? schedule.sleepTime
+      : null
+
+  const months = await aggregateMonthlyStats(36, { scheduledSleepHHMM })
   const byKey = new Map(months.map((m) => [m.month, m]))
 
   const thisMonth = byKey.get(thisKey) ?? emptyMonthStats(thisKey)
   const lastMonth = byKey.get(lastKey) ?? emptyMonthStats(lastKey)
   const deltas = computeDeltas(thisMonth, lastMonth)
+  const verdict = buildVerdictFromDeltas(deltas)
 
   return {
     thisMonth,
     lastMonth,
-    improved: didImprove(deltas),
+    improved: verdict.improved,
     deltas,
+    verdict,
   }
 }

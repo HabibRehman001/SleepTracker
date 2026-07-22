@@ -244,3 +244,20 @@ export {
   runScheduledLockOnce as runScheduledLockWithNative,
 } from './scheduledLock'
 export { syncScheduledLockTrigger } from './syncScheduledLock'
+export {
+  syncMonthEndSummaryNotification,
+  cancelMonthEndSummaryNotification,
+  monthEndSummaryBody,
+  nextMonthEndSummaryFireAt,
+  MONTH_END_SUMMARY_NOTIFICATION_ID,
+} from './monthEndSummary'
+export {
+  fetchMonthComparison,
+} from './monthlyReportApi'
+export {
+  buildReportMetrics,
+  formatMonthLabel,
+  type MonthComparisonDTO,
+  type ComparedReportMetric,
+} from './monthlyReportMath'
+

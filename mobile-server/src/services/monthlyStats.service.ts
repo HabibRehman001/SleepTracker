@@ -5,6 +5,10 @@ import {
   formatClock,
   minutesSinceMidnight,
 } from './clockMath'
+import {
+  bedtimeAdherencePercent,
+  isNightWithinScheduledBedtime,
+} from './improvementVerdictMath'
 
 export type MonthlyStats = {
   month: string
@@ -13,7 +17,14 @@ export type MonthlyStats = {
   avgDurationHours: number | null
   avgBedTime: string | null
   avgWakeTime: string | null
+  /** Stdev-based 0–100 (legacy display). */
   consistencyScore: number
+  /**
+   * Step 188 — % of nights within 15 min of scheduled bedtime (quality proxy).
+   * null when no schedule or no nights.
+   */
+  bedtimeAdherencePercent: number | null
+  nightsOnSchedule: number
   avgStepsCount: number | null
 }
 
@@ -26,11 +37,23 @@ type MonthBucket = {
   wakeTimes: Date[]
 }
 
+function parseScheduledSleepMinutes(hhmm: string | null | undefined): number | null {
+  if (!hhmm) return null
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(hhmm.trim())
+  if (!match) return null
+  return Number(match[1]) * 60 + Number(match[2])
+}
+
 /**
  * Mongo aggregation: group ActivitySessions by calendar month (UTC yyyy-MM),
- * then apply circular bed/wake mean + consistency in JS (Phase 1 concepts).
+ * then apply circular bed/wake mean + consistency + bedtime adherence in JS.
  */
-export async function aggregateMonthlyStats(limit = 12): Promise<MonthlyStats[]> {
+export async function aggregateMonthlyStats(
+  limit = 12,
+  options?: { scheduledSleepHHMM?: string | null }
+): Promise<MonthlyStats[]> {
+  const scheduledMin = parseScheduledSleepMinutes(options?.scheduledSleepHHMM)
+
   const buckets = await ActivitySession.aggregate<MonthBucket>([
     {
       $addFields: {
@@ -74,6 +97,15 @@ export async function aggregateMonthlyStats(limit = 12): Promise<MonthlyStats[]>
         ? Math.round(bucket.avgDurationMs / 60_000)
         : null
 
+    let nightsOnSchedule = 0
+    let adherence: number | null = null
+    if (scheduledMin != null && bedMinutes.length > 0) {
+      nightsOnSchedule = bedMinutes.filter((m) =>
+        isNightWithinScheduledBedtime(m, scheduledMin)
+      ).length
+      adherence = bedtimeAdherencePercent(nightsOnSchedule, bedMinutes.length)
+    }
+
     return {
       month: bucket._id,
       sessionCount: bucket.sessionCount,
@@ -85,6 +117,8 @@ export async function aggregateMonthlyStats(limit = 12): Promise<MonthlyStats[]>
       avgBedTime: avgBed == null ? null : formatClock(avgBed),
       avgWakeTime: avgWake == null ? null : formatClock(avgWake),
       consistencyScore: consistencyScoreFromBedMinutes(bedMinutes),
+      bedtimeAdherencePercent: adherence,
+      nightsOnSchedule,
       avgStepsCount:
         bucket.avgStepsCount != null && Number.isFinite(bucket.avgStepsCount)
           ? Math.round(bucket.avgStepsCount)

@@ -181,6 +181,15 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!notificationSetupDone) return
+    void import('../services/monthEndSummary')
+      .then((m) => m.syncMonthEndSummaryNotification())
+      .catch((err: unknown) => {
+        console.warn('[MONTH_END_SUMMARY] sync failed', err)
+      })
+  }, [notificationSetupDone])
+
+  useEffect(() => {
+    if (!notificationSetupDone) return
     if (homeSetupDone) {
       void hydrateFromBackend()
       return
@@ -432,6 +441,13 @@ export default function HomeScreen() {
         <Pressable className="px-4 py-2.5" testID="open-activity">
           <Text className="text-sidebar-primary text-[15px] font-medium">
             Activity
+          </Text>
+        </Pressable>
+      </Link>
+      <Link href={'/monthly-report' as Href} asChild>
+        <Pressable className="px-4 py-2.5" testID="open-monthly-report">
+          <Text className="text-sidebar-primary text-[15px] font-medium">
+            Monthly report
           </Text>
         </Pressable>
       </Link>

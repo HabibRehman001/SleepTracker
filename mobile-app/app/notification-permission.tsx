@@ -34,6 +34,11 @@ export default function NotificationPermissionScreen() {
 
       if (result.phase === 'granted') {
         setNotificationSetupDone(true)
+        void import('../services/monthEndSummary')
+          .then((m) => m.syncMonthEndSummaryNotification())
+          .catch((err: unknown) => {
+            console.warn('[MONTH_END_SUMMARY] sync after grant failed', err)
+          })
         router.replace('/set-home')
         return
       }

@@ -121,6 +121,10 @@ export default function RootLayout() {
           options={{ title: 'Activity', headerBackTitle: 'Back' }}
         />
         <Stack.Screen
+          name="monthly-report"
+          options={{ title: 'Monthly report', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen
           name="call-allowlist"
           options={{ title: 'Call allow-list', headerBackTitle: 'Back' }}
         />

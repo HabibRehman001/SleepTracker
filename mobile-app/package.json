@@ -56,6 +56,8 @@
     "test:pedometer-history": "npx tsx scripts/check-pedometer-history.mjs",
     "test:activity-classify": "npx tsx scripts/check-activity-classify.mjs",
     "test:activity-screen": "npx tsx scripts/check-activity-screen.mjs",
+    "test:month-end-summary": "npx tsx scripts/check-month-end-summary.mjs",
+    "test:monthly-report": "npx tsx scripts/check-monthly-report.mjs",
     "test:lock-countdown": "npx tsx scripts/check-lock-countdown.mjs",
     "test:locked-screen": "npx tsx scripts/check-locked-screen.mjs"
   },

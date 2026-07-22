@@ -11,6 +11,7 @@ import statsRoutes from './routes/stats.routes'
 import homeLocationRoutes from './routes/homeLocation.routes'
 import lockSessionRoutes from './routes/lockSession.routes'
 import authRoutes from './routes/auth.routes'
+import exportRoutes from './routes/export.routes'
 
 /**
  * CORS_ORIGIN can be a single origin or comma-separated list, e.g.
@@ -115,6 +116,10 @@ app.use('/api/lock-session', lockSessionRoutes)
 /** Minimal email/password accounts (mobile-server only; not Phase 1 Backend). */
 app.use('/auth', authRoutes)
 app.use('/api/auth', authRoutes)
+
+/** Step 189 — Phase 1–compatible JSON export (optional sync later). */
+app.use('/export', exportRoutes)
+app.use('/api/export', exportRoutes)
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ message: 'Not found' })

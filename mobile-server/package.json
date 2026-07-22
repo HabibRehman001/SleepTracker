@@ -16,6 +16,8 @@
     "test:schedule-change": "npx tsx scripts/check-schedule-change.mjs",
     "test:monthly-stats": "npx tsx scripts/check-monthly-stats.mjs",
     "test:comparison": "npx tsx scripts/check-comparison.mjs",
+    "test:improvement-verdict": "npx tsx scripts/check-improvement-verdict.mjs",
+    "test:phase1-export": "npx tsx scripts/check-phase1-export.mjs",
     "test:lan-only": "npx tsx scripts/check-lan-only.mjs",
     "test:home-location": "npx tsx scripts/check-home-location.mjs",
     "test:lock-session": "npx tsx scripts/check-lock-session.mjs",
