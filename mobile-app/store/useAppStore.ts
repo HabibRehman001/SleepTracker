@@ -1,8 +1,10 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { create } from 'zustand'
+import { createJSONStorage, persist } from 'zustand/middleware'
 
 /**
- * App-level UI flags (Step 120 — zustand). Lock session state still also
- * mirrored in lockStore for the home screen until fully migrated.
+ * App-level UI flags (Step 120 — zustand). Persisted so cold start / deep links
+ * do not bounce a signed-in user through onboarding → /auth again.
  */
 type AppState = {
   onboardingDone: boolean
@@ -24,19 +26,37 @@ type AppState = {
   setFamilyControlsSetupDone: (done: boolean) => void
 }
 
-export const useAppStore = create<AppState>((set) => ({
-  onboardingDone: false,
-  setOnboardingDone: (done) => set({ onboardingDone: done }),
-  locationSetupDone: false,
-  setLocationSetupDone: (done) => set({ locationSetupDone: done }),
-  motionSetupDone: false,
-  setMotionSetupDone: (done) => set({ motionSetupDone: done }),
-  notificationSetupDone: false,
-  setNotificationSetupDone: (done) => set({ notificationSetupDone: done }),
-  homeSetupDone: false,
-  setHomeSetupDone: (done) => set({ homeSetupDone: done }),
-  deviceOwnerSetupDone: false,
-  setDeviceOwnerSetupDone: (done) => set({ deviceOwnerSetupDone: done }),
-  familyControlsSetupDone: false,
-  setFamilyControlsSetupDone: (done) => set({ familyControlsSetupDone: done }),
-}))
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      onboardingDone: false,
+      setOnboardingDone: (done) => set({ onboardingDone: done }),
+      locationSetupDone: false,
+      setLocationSetupDone: (done) => set({ locationSetupDone: done }),
+      motionSetupDone: false,
+      setMotionSetupDone: (done) => set({ motionSetupDone: done }),
+      notificationSetupDone: false,
+      setNotificationSetupDone: (done) => set({ notificationSetupDone: done }),
+      homeSetupDone: false,
+      setHomeSetupDone: (done) => set({ homeSetupDone: done }),
+      deviceOwnerSetupDone: false,
+      setDeviceOwnerSetupDone: (done) => set({ deviceOwnerSetupDone: done }),
+      familyControlsSetupDone: false,
+      setFamilyControlsSetupDone: (done) =>
+        set({ familyControlsSetupDone: done }),
+    }),
+    {
+      name: 'sleep-lock-app-flags',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (s) => ({
+        onboardingDone: s.onboardingDone,
+        locationSetupDone: s.locationSetupDone,
+        motionSetupDone: s.motionSetupDone,
+        notificationSetupDone: s.notificationSetupDone,
+        homeSetupDone: s.homeSetupDone,
+        deviceOwnerSetupDone: s.deviceOwnerSetupDone,
+        familyControlsSetupDone: s.familyControlsSetupDone,
+      }),
+    }
+  )
+)

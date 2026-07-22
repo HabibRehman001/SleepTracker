@@ -70,7 +70,11 @@ export default function LocationPermissionScreen() {
   return (
     <View
       className="bg-background flex-1"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+      style={{
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        overflow: 'hidden',
+      }}
       testID="location-permission-screen"
     >
       <View

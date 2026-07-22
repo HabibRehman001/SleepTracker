@@ -107,6 +107,39 @@ export {
   type CurrentLocationSummary,
 } from './currentLocationMath'
 export {
+  isPedometerAvailable,
+  watchLiveStepCount,
+  stopLiveStepCount,
+  getTodayStepCount,
+  getStepCountBetween,
+  getYesterdayStepCount,
+  getHistoricalDaySteps,
+  isWithinStepTolerance,
+  isPlausibleWholeDayTotal,
+  PEDOMETER_PURPOSE,
+  PEDOMETER_HISTORY_PURPOSE,
+  PEDOMETER_STEP_TOLERANCE,
+  type HistoricalDaySteps,
+} from './pedometer'
+export {
+  classifyActivity,
+  cadenceFromStepDelta,
+  JOG_CADENCE_MIN,
+  RUN_CADENCE_MIN,
+  ACTIVITY_CLASSIFY_PURPOSE,
+  type ActivityType,
+} from './activityClassification'
+export {
+  DEFAULT_DAILY_STEP_GOAL,
+  buildWeekStepBars,
+  goalProgress,
+  resolveActivityMinutes,
+  formatStepCount,
+  type ActivityMinutes,
+  type DayStepBar,
+} from './activityScreenMath'
+export { fetchSevenDayStepSeries, loadActivityMinutes } from './activityHistory'
+export {
   formatCountdown,
   shouldShowLockCountdown,
   LOCK_COUNTDOWN_MAX_MINUTES,

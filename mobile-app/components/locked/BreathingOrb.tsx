@@ -4,9 +4,16 @@ import { Animated, View } from 'react-native'
 /**
  * Soft breathing orb — slow expand/fade. Presence without urgency (Step 160).
  */
-export function BreathingOrb({ testID = 'locked-breathing' }: { testID?: string }) {
+export function BreathingOrb({
+  testID = 'locked-breathing',
+  size = 200,
+}: {
+  testID?: string
+  size?: number
+}) {
   const scale = useRef(new Animated.Value(0.88)).current
   const opacity = useRef(new Animated.Value(0.28)).current
+  const orb = Math.round(size * 0.8)
 
   useEffect(() => {
     const pulse = Animated.loop(
@@ -46,14 +53,14 @@ export function BreathingOrb({ testID = 'locked-breathing' }: { testID?: string 
   return (
     <View
       className="items-center justify-center"
-      style={{ height: 200 }}
+      style={{ height: size }}
       testID={testID}
     >
       <Animated.View
         style={{
-          width: 160,
-          height: 160,
-          borderRadius: 80,
+          width: orb,
+          height: orb,
+          borderRadius: orb / 2,
           backgroundColor: 'rgba(120, 145, 168, 0.22)',
           borderWidth: 1,
           borderColor: 'rgba(160, 180, 200, 0.18)',

@@ -26,7 +26,7 @@ export const ONBOARDING_SLIDES: OnboardingSlide[] = [
     key: 'set-lock',
     eyebrow: 'Step 2',
     title: 'Soft lock from your schedule',
-    body: 'Reminders and in-app lock help you stick to bed and wake times. True full-device lock is optional later (Device Owner).',
+    body: 'Reminders and the in-app sleep lock screen help you stick to bed and wake times — on every device where you sign in.',
   },
   {
     key: 'ready',

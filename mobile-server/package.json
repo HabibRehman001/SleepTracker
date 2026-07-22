@@ -18,6 +18,7 @@
     "test:comparison": "npx tsx scripts/check-comparison.mjs",
     "test:lan-only": "npx tsx scripts/check-lan-only.mjs",
     "test:home-location": "npx tsx scripts/check-home-location.mjs",
+    "test:lock-session": "npx tsx scripts/check-lock-session.mjs",
     "test:auth": "npx tsx scripts/check-auth.mjs"
   },
   "dependencies": {

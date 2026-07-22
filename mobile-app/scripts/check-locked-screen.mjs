@@ -21,6 +21,8 @@ const index = readFileSync(join(root, 'app/index.tsx'), 'utf8')
 const layout = readFileSync(join(root, 'app/_layout.tsx'), 'utf8')
 const countdown = readFileSync(join(root, 'app/lock-countdown.tsx'), 'utf8')
 
+assert.doesNotMatch(screen, /ScrollView/)
+assert.match(screen, /overflow:\s*['"]hidden['"]|overflow:\s*"hidden"/)
 assert.match(screen, /testID=["']locked-screen["']/)
 assert.match(screen, /testID=["']locked-clock["']/)
 assert.match(screen, /testID=["']locked-message["']/)

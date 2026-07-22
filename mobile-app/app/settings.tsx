@@ -233,6 +233,22 @@ export default function SettingsScreen() {
         </Pressable>
       </Link>
 
+      <Link href={'/live-steps' as Href} asChild>
+        <Pressable className="py-3" testID="settings-open-live-steps">
+          <Text className="text-sidebar-primary text-[15px] font-medium">
+            Live steps (pedometer)
+          </Text>
+        </Pressable>
+      </Link>
+
+      <Link href={'/activity' as Href} asChild>
+        <Pressable className="py-3" testID="settings-open-activity">
+          <Text className="text-sidebar-primary text-[15px] font-medium">
+            Activity
+          </Text>
+        </Pressable>
+      </Link>
+
       <Link href="/call-allowlist" asChild>
         <Pressable className="py-3" testID="settings-open-call-allowlist">
           <Text className="text-sidebar-primary text-[15px] font-medium">

@@ -103,7 +103,11 @@ export default function LockCountdownScreen() {
   return (
     <View
       className="bg-background flex-1 px-6"
-      style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 20 }}
+      style={{
+        paddingTop: insets.top + 24,
+        paddingBottom: insets.bottom + 20,
+        overflow: 'hidden',
+      }}
       testID="lock-countdown-screen"
     >
       <View

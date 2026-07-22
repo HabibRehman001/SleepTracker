@@ -1,9 +1,11 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
+import { useEffect } from 'react'
 import { StyleSheet } from 'react-native'
 
 import { queryClient } from '../services/queryClient'
+import { useAuthStore } from '../store/authStore'
 import { darkTokens } from '../theme/tokens'
 
 // Step 141 — TaskManager.defineTask must run in global scope (before screens mount).
@@ -19,8 +21,13 @@ import '../global.css'
 
 /**
  * Root layout — dark theme tokens match web-app `.dark` (Step 122).
+ * Hydrates auth once so /auth never flashes the form for a signed-in user.
  */
 export default function RootLayout() {
+  useEffect(() => {
+    void useAuthStore.getState().hydrate()
+  }, [])
+
   return (
     <QueryClientProvider client={queryClient}>
       <StatusBar style="light" />
@@ -83,7 +90,11 @@ export default function RootLayout() {
         />
         <Stack.Screen
           name="lock-countdown"
-          options={{ headerShown: false, animation: 'fade', gestureEnabled: false }}
+          options={{
+            headerShown: false,
+            animation: 'fade',
+            gestureEnabled: false,
+          }}
         />
         <Stack.Screen
           name="locked"
@@ -100,6 +111,14 @@ export default function RootLayout() {
         <Stack.Screen
           name="current-location"
           options={{ title: 'Current location', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen
+          name="live-steps"
+          options={{ title: 'Live steps', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen
+          name="activity"
+          options={{ title: 'Activity', headerBackTitle: 'Back' }}
         />
         <Stack.Screen
           name="call-allowlist"

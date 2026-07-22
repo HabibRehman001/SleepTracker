@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-22 (Step 179 current location map)
+Last updated: 2026-07-22 (Step 184 Activity screen)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -1024,6 +1024,32 @@ MANUAL: leave geofencing on overnight; compare drain to a night without the app.
 One-shot getCurrentPositionAsync (not continuous GPS). Geofence circle 150m.
 Linked from Settings + home. Web: coordinate fallback (no react-native-maps).
 
+----- 6.130 Native pedometer (Step 181) -----
+expo-sensors Pedometer.isAvailableAsync + watchStepCount → liveSteps (hardware
+step sensor — Core Motion / Android activity). Prefer over Step 141 accel-derived
+steps for accuracy + battery. getStepCountAsync for today’s total. /live-steps:
+walk ~20 steps with app open; expect count within ±2. Auto-starts after motion
+permission when hardware is available.
+
+----- 6.131 Historical step totals (Step 182) -----
+Pedometer.getStepCountAsync(start, end) for past calendar-day windows (yesterday
+00:00→next midnight). OS-level history — works even when the app was closed.
+/live-steps shows Today + Yesterday separately from session liveSteps.
+Expo: getStepCountAsync is Core Motion on iOS (≈7 days); Android may be limited
+by the native module. Contract: npm run test:pedometer-history.
+MANUAL: “steps yesterday” is a whole-day total, not steps since app launch.
+
+----- 6.132 Activity type from cadence (Step 183) -----
+classifyActivity(stepsPerMinute): walk (<100), jog (<150), run (≥150).
+Live cadence from pedometer watch window → activityType on /live-steps.
+Contract: 90→walk, 130→jog, 170→run. npm run test:activity-classify.
+
+----- 6.133 Activity screen (Step 184) -----
+/activity — today’s steps (large) + GitHub-style SVG goal ring (default 8k),
+7-day step bar chart, walk/jog/run minutes breakdown. Uses OS history
+(Steps 181–182) + cadence classify (183). Links from home + Settings.
+TESTED: npm run test:activity-screen.
+
 ----- 6.115 Pre-lock countdown screen (Step 156) -----
 /lock-countdown — full-screen timer when the app opens inside the 30-min warning
 window. Sets expectation before Soft Lock engages; optional “I’ll wind down”
@@ -1051,6 +1077,9 @@ GET  /stats/comparison         this vs last month + improved + deltas
 PUT  /home-location            upsert home lat/lng (geofence pin)
 GET  /home-location            { home: dto | null } always 200 (no 404)
      (also /api/home-location)
+GET  /lock-session             { session } account sleep-lock (auth required)
+PUT  /lock-session             { locked, unlockAt? } mirror lock across devices
+     (also /api/lock-session)
 
 Phase 1 Backend (:4000):
 GET  /api/sleep-entries              all sleep entries + relations
@@ -1932,6 +1961,44 @@ Tests (Backend):
 - Moved verification out of ad-hoc scripts into tests/.
 - TESTED: npm test → ALL TESTS PASSED (5 analytics + 3 repository).
 - TESTED: npm run test:api → API SMOKE PASSED (4 endpoints).
+
+[2026-07-22] Step 184 — Activity screen (ring + 7-day + breakdown)
+- /activity: today steps + GitHub-style goal ring, 7-day bars, walk/jog/run min.
+- react-native-svg ring; fetchSevenDayStepSeries + activityScreenMath.
+- TESTED: npm run test:activity-screen; tsc --noEmit.
+
+[2026-07-22] Step 183 — Activity classify (walk/jog/run from cadence)
+- classifyActivity(spm): <100 walk, <150 jog, else run. Live cadence on
+  /live-steps from pedometer watch window.
+- TESTED: npm run test:activity-classify (90/130/170 → walk/jog/run); tsc.
+
+[2026-07-22] Step 182 — Historical step totals (getStepCountAsync)
+- getYesterdayStepCount / getHistoricalDaySteps: full local calendar-day windows
+  via Pedometer.getStepCountAsync (OS history, app need not have been open).
+- /live-steps shows Today + Yesterday vs session liveSteps.
+- TESTED: npm run test:pedometer-history; test:pedometer; tsc --noEmit.
+- MANUAL: yesterday total is a whole-day count, not steps since app launch.
+
+[2026-07-22] Step 181 — Native pedometer (hardware step count)
+- Pedometer.isAvailableAsync + watchStepCount → liveSteps store; today’s total
+  via getStepCountAsync. Far more accurate/battery-friendly than Step 141 accel.
+- /live-steps UI for walk-20-steps check (±2). Links from home + Settings.
+- Files: pedometer.ts, pedometerMath.ts, pedometerStore.ts, live-steps.tsx
+- TESTED: npm run test:pedometer; tsc --noEmit.
+- MANUAL: open /live-steps on a phone, walk 20 steps — count within ±2.
+
+[2026-07-22] Auth + account lock + home UX polish
+- Auth: hydrate on root + /auth; persist setup flags; signed-in users
+  never see the credentials form when opening /auth.
+- Account lock: GET/PUT /lock-session — enable lock on phone A → login
+  on phone B shows /locked for the same user until unlock/wake.
+- Home: removed Device Owner / Family Controls upsell links and copy.
+- Set-home web: OSM embed with exact marker + multi-result address pick
+  (fixes Google unofficial-embed pin drift).
+- Locked screen: ScrollView + compact orb/clock; soft unlock in flow
+  (no absolute overlap overflow).
+- TESTED: test:auth, test:set-home, test:locked-screen, test:lock-session,
+  test:device-owner-setup, tsc --noEmit.
 
 --------------------------------------------------------------------------------
 END OF SUMMARY (append new change-log entries above this line going forward)

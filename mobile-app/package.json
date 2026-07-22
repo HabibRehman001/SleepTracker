@@ -52,6 +52,10 @@
     "test:never-arrived": "npx tsx scripts/check-never-arrived.mjs",
     "test:geofence-battery": "npx tsx scripts/check-geofence-battery.mjs",
     "test:current-location": "npx tsx scripts/check-current-location.mjs",
+    "test:pedometer": "npx tsx scripts/check-pedometer.mjs",
+    "test:pedometer-history": "npx tsx scripts/check-pedometer-history.mjs",
+    "test:activity-classify": "npx tsx scripts/check-activity-classify.mjs",
+    "test:activity-screen": "npx tsx scripts/check-activity-screen.mjs",
     "test:lock-countdown": "npx tsx scripts/check-lock-countdown.mjs",
     "test:locked-screen": "npx tsx scripts/check-locked-screen.mjs"
   },
@@ -80,6 +84,7 @@
     "react-native-reanimated": "4.5.0",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",
+    "react-native-svg": "15.15.4",
     "react-native-web": "^0.21.2",
     "react-native-worklets": "^0.10.0",
     "tailwindcss": "^3.4.19",

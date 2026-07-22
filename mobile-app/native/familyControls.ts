@@ -48,6 +48,6 @@ export const FAMILY_CONTROLS_CHECKLIST = [
 export const NOTIFICATION_ONLY_MODE_LABEL = 'Notification-only mode'
 
 export const NOTIFICATION_ONLY_MODE_BODY =
-  'Soft lock from your sleep stats: countdown alerts and schedule help. Full phone lockdown needs Device Owner (Android) or Family Controls (iOS) — optional, not required to use the app.'
+  'Soft lock from your sleep stats: countdown alerts, schedule help, and the sleep lock screen on any device where you sign in.'
 
 export const SOFT_LOCK_ENABLED_LABEL = 'Soft lock ready (from your stats)'

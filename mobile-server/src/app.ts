@@ -9,6 +9,7 @@ import sessionRoutes from './routes/session.routes'
 import scheduleRoutes from './routes/schedule.routes'
 import statsRoutes from './routes/stats.routes'
 import homeLocationRoutes from './routes/homeLocation.routes'
+import lockSessionRoutes from './routes/lockSession.routes'
 import authRoutes from './routes/auth.routes'
 
 /**
@@ -106,6 +107,10 @@ app.use('/api/stats', statsRoutes)
 /** Step 137 — home lat/lng for geofencing (persisted in Mongo) */
 app.use('/home-location', homeLocationRoutes)
 app.use('/api/home-location', homeLocationRoutes)
+
+/** Account-wide sleep lock — mirrors /locked across devices for the same user. */
+app.use('/lock-session', lockSessionRoutes)
+app.use('/api/lock-session', lockSessionRoutes)
 
 /** Minimal email/password accounts (mobile-server only; not Phase 1 Backend). */
 app.use('/auth', authRoutes)

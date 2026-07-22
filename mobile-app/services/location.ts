@@ -68,5 +68,12 @@ export async function getLocationPermissionSnapshot(): Promise<LocationPermissio
 
 /** Deep-link into OS app settings so the user can enable background location. */
 export async function openAppSettings(): Promise<void> {
+  // Web / Windows: Linking.openSettings is not available — no-op.
+  if (typeof Linking.openSettings !== 'function') {
+    console.warn(
+      '[openAppSettings] Linking.openSettings is not available on this platform'
+    )
+    return
+  }
   await Linking.openSettings()
 }

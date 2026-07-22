@@ -14,6 +14,7 @@ export {
 export { useLockStateStore } from './lockStateStore'
 export { useAppStore } from './useAppStore'
 export { useHomeLocationStore } from './homeLocationStore'
+export { usePedometerStore } from './pedometerStore'
 
 /** @deprecated Prefer useLockStateStore (Step 123). */
 export {

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -10,32 +11,64 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Redirect, router } from 'expo-router'
 
+import * as lockService from '../services/lockService'
 import { useAuthStore } from '../store/authStore'
 import { useAppStore } from '../store/useAppStore'
+import { useLockStateStore } from '../store/lockStateStore'
 
 /**
  * Create account / log in — required before permissions.
+ * Signed-in users are redirected away (never show credentials again).
  */
 export default function AuthScreen() {
   const insets = useSafeAreaInsets()
   const signup = useAuthStore((s) => s.signup)
   const login = useAuthStore((s) => s.login)
+  const hydrate = useAuthStore((s) => s.hydrate)
   const busy = useAuthStore((s) => s.busy)
   const lastError = useAuthStore((s) => s.lastError)
   const clearError = useAuthStore((s) => s.clearError)
   const token = useAuthStore((s) => s.token)
   const hydrated = useAuthStore((s) => s.hydrated)
   const locationSetupDone = useAppStore((s) => s.locationSetupDone)
+  const setLocked = useLockStateStore((s) => s.setLocked)
 
   const [mode, setMode] = useState<'signup' | 'login'>('signup')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
-  if (hydrated && token) {
+  useEffect(() => {
+    void hydrate()
+  }, [hydrate])
+
+  if (!hydrated) {
+    return (
+      <View
+        className="bg-background flex-1 items-center justify-center"
+        testID="auth-hydrating"
+      >
+        <ActivityIndicator color="#fafafa" />
+      </View>
+    )
+  }
+
+  if (token) {
     return (
       <Redirect href={locationSetupDone ? '/' : '/location-permission'} />
     )
+  }
+
+  const afterAuth = async () => {
+    lockService.configureLockService()
+    const accountLocked = await lockService.syncAccountLockFromServer()
+    const locked = accountLocked || (await lockService.isLocked())
+    setLocked(locked)
+    if (locked) {
+      router.replace('/locked')
+      return
+    }
+    router.replace('/location-permission')
   }
 
   const submit = async () => {
@@ -46,7 +79,7 @@ export default function AuthScreen() {
       } else {
         await login(email, password)
       }
-      router.replace('/location-permission')
+      await afterAuth()
     } catch {
       // lastError set on store
     }

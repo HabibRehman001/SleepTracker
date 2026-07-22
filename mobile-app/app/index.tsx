@@ -1,6 +1,6 @@
 import { Link, Redirect, type Href } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Pressable, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native'
 
 import {
   FULL_LOCK_ENABLED_LABEL,
@@ -24,8 +24,7 @@ import { useLockStateStore } from '../store/lockStateStore'
 import { useScheduleStore } from '../store/scheduleStore'
 
 /**
- * Home — soft lock from stats by default; Device Owner / Family Controls optional.
- * First-run: onboarding → account → permissions → set-home → home.
+ * Home — stats-driven soft lock. First-run: onboarding → account → permissions → set-home → home.
  */
 export default function HomeScreen() {
   const onboardingDone = useAppStore((s) => s.onboardingDone)
@@ -68,6 +67,18 @@ export default function HomeScreen() {
   const [countdownRedirect, setCountdownRedirect] = useState<boolean | null>(
     null
   )
+  const [appFlagsHydrated, setAppFlagsHydrated] = useState(() =>
+    useAppStore.persist.hasHydrated()
+  )
+
+  useEffect(() => {
+    if (appFlagsHydrated) return
+    const unsub = useAppStore.persist.onFinishHydration(() => {
+      setAppFlagsHydrated(true)
+    })
+    if (useAppStore.persist.hasHydrated()) setAppFlagsHydrated(true)
+    return unsub
+  }, [appFlagsHydrated])
 
   useEffect(() => {
     void hydrateAuth()
@@ -77,6 +88,13 @@ export default function HomeScreen() {
     if (!motionSetupDone) return
     void registerMotionSampleTask().catch((err: unknown) => {
       console.warn('[MOTION_SAMPLE] register failed', err)
+    })
+    // Step 181 — prefer hardware pedometer while the app is open.
+    void import('../store/pedometerStore').then(({ usePedometerStore }) => {
+      const s = usePedometerStore.getState()
+      void s.hydrateAvailability().then((ok) => {
+        if (ok) void s.startWatch()
+      })
     })
   }, [motionSetupDone])
 
@@ -130,24 +148,29 @@ export default function HomeScreen() {
   }, [scheduleLockedIn, isLocked, ready])
 
   useEffect(() => {
+    if (!authToken || !authUser) return
     lockService.configureLockService()
-    void Promise.all([
-      lockService.isLocked(),
-      lockService.isDeviceOwner(),
-      lockService.hasFamilyControlsEntitlement(),
-    ])
-      .then(([locked, owner, family]) => {
-        setLocked(locked)
+    void (async () => {
+      try {
+        const accountLocked = await lockService.syncAccountLockFromServer()
+        const [locked, owner, family] = await Promise.all([
+          lockService.isLocked(),
+          lockService.isDeviceOwner(),
+          lockService.hasFamilyControlsEntitlement(),
+        ])
+        setLocked(accountLocked || locked)
         setDeviceOwner(owner)
         setFamilyControls(family)
         setLockCapability(classifyLockCapability(owner, family))
-        setReady(true)
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         setLastError(err instanceof Error ? err.message : 'Failed to read lock')
+      } finally {
         setReady(true)
-      })
+      }
+    })()
   }, [
+    authToken,
+    authUser,
     setLocked,
     setDeviceOwner,
     setFamilyControls,
@@ -172,7 +195,7 @@ export default function HomeScreen() {
     setHomeSetupDone,
   ])
 
-  if (!authHydrated) {
+  if (!authHydrated || !appFlagsHydrated) {
     return (
       <View className="bg-background flex-1 items-center justify-center">
         <ActivityIndicator color="#fafafa" />
@@ -243,7 +266,10 @@ export default function HomeScreen() {
       if (await lockService.isLocked()) {
         await lockService.disableLock()
       } else {
-        await lockService.enableLock()
+        const wake =
+          useScheduleStore.getState().getEnforcedTimes()?.waketime ??
+          useScheduleStore.getState().waketime
+        await lockService.enableLock({ wakeHHMM: wake })
       }
       setLocked(await lockService.isLocked())
     } catch (err: unknown) {
@@ -272,8 +298,7 @@ export default function HomeScreen() {
           {SOFT_LOCK_ENABLED_LABEL}
         </Text>
         <Text className="text-muted-foreground text-center text-xs leading-5 mt-1">
-          Driven by your sleep stats. Full device lock needs Device Owner
-          (optional).
+          Driven by your sleep stats and schedule.
         </Text>
       </View>
     ) : (
@@ -285,24 +310,30 @@ export default function HomeScreen() {
           {NOTIFICATION_ONLY_MODE_LABEL}
         </Text>
         <Text className="text-muted-foreground text-center text-xs leading-5">
-          Soft lock from your stats: schedules and countdown alerts. Full phone
-          lockdown needs Device Owner (Android) or Family Controls (iOS) — optional
-          later.
+          Soft lock from your sleep stats: schedules, countdown, and the sleep
+          lock screen on any device where you sign in.
         </Text>
       </View>
     )
 
   return (
-    <View
-      className="bg-background flex-1 items-center justify-center px-6"
+    <ScrollView
+      className="bg-background flex-1"
+      contentContainerStyle={{
+        flexGrow: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 24,
+        paddingVertical: 24,
+      }}
       testID="home-screen"
     >
       <Text className="text-foreground text-3xl font-semibold mb-3">
         Sleep Lock
       </Text>
       <Text className="text-muted-foreground text-center text-[15px] leading-6 mb-2">
-        Stats-driven soft lock — reminders and schedule help, not a full system
-        lockdown unless Device Owner is enabled.
+        Stats-driven soft lock — schedules, reminders, and a calm lock screen
+        while you sleep.
       </Text>
       <Text
         className="text-muted-foreground text-center text-xs leading-5 mb-4"
@@ -390,6 +421,20 @@ export default function HomeScreen() {
           </Text>
         </Pressable>
       </Link>
+      <Link href={'/live-steps' as Href} asChild>
+        <Pressable className="px-4 py-2.5" testID="open-live-steps">
+          <Text className="text-sidebar-primary text-[15px] font-medium">
+            Live steps (pedometer)
+          </Text>
+        </Pressable>
+      </Link>
+      <Link href={'/activity' as Href} asChild>
+        <Pressable className="px-4 py-2.5" testID="open-activity">
+          <Text className="text-sidebar-primary text-[15px] font-medium">
+            Activity
+          </Text>
+        </Pressable>
+      </Link>
       {baselineReady ? (
         <Link href="/baseline-results" asChild>
           <Pressable className="px-4 py-2.5" testID="open-baseline-results">
@@ -399,20 +444,6 @@ export default function HomeScreen() {
           </Pressable>
         </Link>
       ) : null}
-      <Link href="/device-owner-setup" asChild>
-        <Pressable className="px-4 py-2.5" testID="open-device-owner-setup">
-          <Text className="text-sidebar-primary text-[15px] font-medium">
-            Optional: full lock (Device Owner)
-          </Text>
-        </Pressable>
-      </Link>
-      <Link href="/family-controls-setup" asChild>
-        <Pressable className="px-4 py-2.5" testID="open-family-controls-setup">
-          <Text className="text-sidebar-primary text-[15px] font-medium">
-            Optional: Family Controls (iOS)
-          </Text>
-        </Pressable>
-      </Link>
       <Link href="/onboarding" asChild>
         <Pressable className="px-4 py-2.5" testID="open-onboarding">
           <Text className="text-sidebar-primary text-[15px] font-medium">
@@ -434,6 +465,6 @@ export default function HomeScreen() {
       >
         <Text className="text-muted-foreground text-[14px]">Log out</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   )
 }

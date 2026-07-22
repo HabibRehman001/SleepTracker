@@ -16,3 +16,8 @@ export {
   type HomeLocationDoc,
 } from './HomeLocation'
 export { User, userSchema, type UserDoc } from './User'
+export {
+  LockSession,
+  lockSessionSchema,
+  type LockSessionDoc,
+} from './LockSession'

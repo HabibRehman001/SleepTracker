@@ -66,7 +66,11 @@ export default function NotificationPermissionScreen() {
   return (
     <View
       className="bg-background flex-1"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+      style={{
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        overflow: 'hidden',
+      }}
       testID="notification-permission-screen"
     >
       <View
