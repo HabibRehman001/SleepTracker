@@ -39,6 +39,11 @@ export default function NotificationPermissionScreen() {
           .catch((err: unknown) => {
             console.warn('[MONTH_END_SUMMARY] sync after grant failed', err)
           })
+        void import('../services/weekStartSummary')
+          .then((m) => m.syncWeekStartSummaryNotification())
+          .catch((err: unknown) => {
+            console.warn('[WEEK_START_SUMMARY] sync after grant failed', err)
+          })
         router.replace('/set-home')
         return
       }

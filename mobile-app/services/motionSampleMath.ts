@@ -74,8 +74,14 @@ export function classifyMotionMagnitude(magnitudeG: number): {
 /** ~8 samples over 2 hours at 15 min = expected local-log cadence. */
 export const MOTION_SAMPLE_INTERVAL_SECONDS = 15 * 60
 
-/** Cap local log so storage stays small (≈ several days of 15-min samples). */
-export const MOTION_SAMPLE_LOG_MAX = 500
+/**
+ * Cap local log for continuous detection (Step 197).
+ * ≥1 week of 15-min samples: 7 × 24 × 4 = 672; headroom → 1000.
+ */
+export const MOTION_SAMPLE_LOG_MAX = 1000
+
+/** Alias — Step 197 continuous auto-detection retention. */
+export const CONTINUOUS_MOTION_LOG_MAX = MOTION_SAMPLE_LOG_MAX
 
 /**
  * @deprecated Prefer isStatic() — kept as alias for Step 141 still-proxy wording.

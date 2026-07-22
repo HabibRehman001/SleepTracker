@@ -4,8 +4,9 @@
  * 1. Registers `.DeviceAdminReceiver` in AndroidManifest.xml
  * 2. Registers `.SleepLockCallScreeningService` (Step 161)
  * 3. Registers `.SleepLockWatchdogService` START_STICKY FGS (Step 165)
- * 4. Copies Kotlin sources + device_admin.xml into the prebuild android/ tree
- * 5. Registers SleepLockPackage in MainApplication so JS can call isDeviceOwner()
+ * 4. Registers `.UnlockWakeMonitorService` for ACTION_USER_PRESENT (Step 198)
+ * 5. Copies Kotlin sources + device_admin.xml into the prebuild android/ tree
+ * 6. Registers SleepLockPackage in MainApplication so JS can call isDeviceOwner()
  *
  * After install + ADB set-device-owner, verify with:
  *   adb shell dumpsys device_policy
@@ -24,6 +25,7 @@ const ANDROID_PACKAGE = 'com.sleeptracker.sleeplock'
 const RECEIVER_NAME = '.DeviceAdminReceiver'
 const CALL_SCREENING_SERVICE = '.SleepLockCallScreeningService'
 const WATCHDOG_SERVICE = '.SleepLockWatchdogService'
+const UNLOCK_WAKE_SERVICE = '.UnlockWakeMonitorService'
 const KOTLIN_FILES = [
   'DeviceAdminReceiver.kt',
   'SleepLockModule.kt',
@@ -33,6 +35,9 @@ const KOTLIN_FILES = [
   'IncomingCallGate.kt',
   'EmergencyNumbers.kt',
   'SleepLockWatchdogService.kt',
+  'UnlockReceiver.kt',
+  'UnlockEventStore.kt',
+  'UnlockWakeMonitorService.kt',
 ]
 
 function receiverAlreadyPresent(application) {
@@ -130,6 +135,26 @@ function withDeviceAdminManifest(config) {
             $: {
               'android:name': 'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE',
               'android:value': 'sleep_lock_kiosk_recovery',
+            },
+          },
+        ],
+      })
+    }
+
+    // Step 198 — FGS hosts runtime ACTION_USER_PRESENT (not manifest receiver).
+    if (!serviceAlreadyPresent(application, UNLOCK_WAKE_SERVICE)) {
+      if (!application.service) application.service = []
+      application.service.push({
+        $: {
+          'android:name': UNLOCK_WAKE_SERVICE,
+          'android:exported': 'false',
+          'android:foregroundServiceType': 'specialUse',
+        },
+        property: [
+          {
+            $: {
+              'android:name': 'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE',
+              'android:value': 'sleep_lock_unlock_wake_detect',
             },
           },
         ],

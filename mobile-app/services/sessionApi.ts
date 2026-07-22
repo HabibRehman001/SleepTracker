@@ -1,7 +1,13 @@
 /**
- * Step 127 / 175 — ActivitySession API client (mobile-server).
+ * Step 127 / 175 / 201 — ActivitySession API client (mobile-server).
  */
 import { mobileFetch } from './api'
+import { PASSIVE_ONGOING_SOURCE } from './passiveSessionMath'
+
+export type ActivitySessionSource =
+  | 'baseline-auto'
+  | 'locked-schedule'
+  | 'passive-ongoing'
 
 export type ActivitySessionPayload = {
   _id?: string
@@ -9,7 +15,7 @@ export type ActivitySessionPayload = {
   date: string
   bedTime: string
   wakeTime: string
-  source: 'baseline-auto' | 'locked-schedule'
+  source: ActivitySessionSource
   stepsCount?: number
   homeArrivalTime?: string | null
 }
@@ -27,7 +33,7 @@ export async function persistHomeArrivalToBackend(
   extras?: {
     bedTime?: Date
     wakeTime?: Date
-    source?: 'baseline-auto' | 'locked-schedule'
+    source?: ActivitySessionSource
   }
 ): Promise<HomeArrivalUpsertResult> {
   return mobileFetch<HomeArrivalUpsertResult>('/sessions/home-arrival', {
@@ -47,26 +53,28 @@ export async function persistHomeArrivalToBackend(
 
 /**
  * Step 191 — finalize the locked night on the backend after scheduled unlock.
- * Reuses the sleep-day upsert so we don't create a duplicate row.
+ * Upserts the locked-schedule row only (never overwrites passive-ongoing).
  */
 export async function finalizeLockedNightToBackend(input: {
   homeArrivalTime: Date
   bedTime: Date
   wakeTime: Date
-}): Promise<HomeArrivalUpsertResult> {
-  return persistHomeArrivalToBackend(input.homeArrivalTime, {
+}): Promise<ActivitySessionPayload> {
+  return createActivitySession({
+    date: input.homeArrivalTime,
     bedTime: input.bedTime,
     wakeTime: input.wakeTime,
     source: 'locked-schedule',
+    homeArrivalTime: input.homeArrivalTime,
   })
 }
 
-/** POST /sessions — create a new ActivitySession (baseline or manual). */
+/** POST /sessions — create/upsert ActivitySession by date × source. */
 export async function createActivitySession(payload: {
   date: Date
   bedTime: Date
   wakeTime: Date
-  source: 'baseline-auto' | 'locked-schedule'
+  source: ActivitySessionSource
   stepsCount?: number
   homeArrivalTime?: Date | null
 }): Promise<ActivitySessionPayload> {
@@ -83,4 +91,35 @@ export async function createActivitySession(payload: {
         : {}),
     }),
   })
+}
+
+/** Step 201 — push continuous detection as passive-ongoing (actual bed/wake). */
+export async function pushPassiveOngoingSession(input: {
+  bedTime: Date
+  wakeTime: Date
+  stepsCount?: number
+}): Promise<ActivitySessionPayload> {
+  return createActivitySession({
+    date: input.bedTime,
+    bedTime: input.bedTime,
+    wakeTime: input.wakeTime,
+    source: PASSIVE_ONGOING_SOURCE,
+    stepsCount: input.stepsCount,
+  })
+}
+
+/** GET /sessions?source=… — independently query passive or locked rows. */
+export async function listActivitySessions(params?: {
+  range?: string
+  source?: ActivitySessionSource
+}): Promise<{
+  range: string
+  source: string | null
+  count: number
+  sessions: ActivitySessionPayload[]
+}> {
+  const q = new URLSearchParams()
+  q.set('range', params?.range ?? '30d')
+  if (params?.source) q.set('source', params.source)
+  return mobileFetch(`/sessions?${q.toString()}`)
 }

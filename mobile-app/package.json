@@ -64,7 +64,12 @@
     "test:soak-reliability": "npx tsx scripts/check-soak-reliability.mjs",
     "test:immutable-schedule": "npx tsx scripts/check-immutable-schedule.mjs",
     "test:permission-revoked": "npx tsx scripts/check-permission-revoked.mjs",
-    "test:distribution-policy": "npx tsx scripts/check-distribution-policy.mjs"
+    "test:distribution-policy": "npx tsx scripts/check-distribution-policy.mjs",
+    "test:continuous-detection": "npx tsx scripts/check-continuous-detection.mjs",
+    "test:unlock-wake": "npx tsx scripts/check-unlock-wake.mjs",
+    "test:ios-wake-proxy": "npx tsx scripts/check-ios-wake-proxy.mjs",
+    "test:true-wake": "npx tsx scripts/check-true-wake.mjs",
+    "test:week-start-summary": "npx tsx scripts/check-week-start-summary.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.6",

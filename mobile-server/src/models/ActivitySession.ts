@@ -1,12 +1,23 @@
 import { Schema, model, type InferSchemaType } from 'mongoose'
 
-/** How the session was produced — baseline detection vs locked schedule. */
-export const ACTIVITY_SOURCES = ['baseline-auto', 'locked-schedule'] as const
+/**
+ * How the session was produced (Step 126 / 201):
+ * - baseline-auto — early detection nights
+ * - locked-schedule — what the lock enforced
+ * - passive-ongoing — what continuous detection observed (actual)
+ */
+export const ACTIVITY_SOURCES = [
+  'baseline-auto',
+  'locked-schedule',
+  'passive-ongoing',
+] as const
 export type ActivitySource = (typeof ACTIVITY_SOURCES)[number]
 
 /**
  * One night / activity window logged by the mobile app (Step 126).
  * Distinct from Phase 1 Prisma SleepEntry — enforcement telemetry only.
+ * Step 201: same calendar night may have both passive-ongoing and
+ * locked-schedule rows (compare actual vs enforced).
  */
 export const activitySessionSchema = new Schema(
   {
@@ -27,7 +38,8 @@ export const activitySessionSchema = new Schema(
   }
 )
 
-activitySessionSchema.index({ date: 1, source: 1 })
+/** One row per sleep-day × source so passive and locked coexist. */
+activitySessionSchema.index({ date: 1, source: 1 }, { unique: true })
 
 export type ActivitySessionDoc = InferSchemaType<typeof activitySessionSchema>
 

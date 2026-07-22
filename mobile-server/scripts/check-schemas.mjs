@@ -18,7 +18,10 @@ const activitySrc = readFileSync(
 )
 const scheduleSrc = readFileSync(join(root, 'src/models/Schedule.ts'), 'utf8')
 
-assert.deepEqual([...ACTIVITY_SOURCES], ['baseline-auto', 'locked-schedule'])
+assert.deepEqual(
+  [...ACTIVITY_SOURCES],
+  ['baseline-auto', 'locked-schedule', 'passive-ongoing']
+)
 
 assert.match(activitySrc, /date:\s*\{/)
 assert.match(activitySrc, /bedTime/)
@@ -27,6 +30,7 @@ assert.match(activitySrc, /stepsCount/)
 assert.match(activitySrc, /homeArrivalTime/)
 assert.match(activitySrc, /baseline-auto/)
 assert.match(activitySrc, /locked-schedule/)
+assert.match(activitySrc, /passive-ongoing/)
 
 assert.match(scheduleSrc, /sleepTime/)
 assert.match(scheduleSrc, /wakeTime/)
@@ -47,6 +51,10 @@ assert.ok(schedulePaths.includes('wakeTime'))
 assert.ok(schedulePaths.includes('lockedAt'))
 
 const sourceEnum = activitySessionSchema.path('source').options.enum
-assert.deepEqual(sourceEnum, ['baseline-auto', 'locked-schedule'])
+assert.deepEqual(sourceEnum, [
+  'baseline-auto',
+  'locked-schedule',
+  'passive-ongoing',
+])
 
 console.log('Mongoose schemas contract OK — ActivitySession + Schedule')

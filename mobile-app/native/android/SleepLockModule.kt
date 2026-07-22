@@ -139,6 +139,8 @@ class SleepLockModule(reactContext: ReactApplicationContext) :
           activity.startLockTask()
           SleepLockSession.setLocked(context, true)
           SleepLockWatchdogService.start(context)
+          // Step 198 — FGS-hosted ACTION_USER_PRESENT for real wake time.
+          UnlockWakeMonitorService.start(context)
           promise.resolve(null)
         } catch (e: Exception) {
           try {
@@ -172,6 +174,7 @@ class SleepLockModule(reactContext: ReactApplicationContext) :
       if (activity != null) {
         mainHandler.post {
           try {
+            UnlockWakeMonitorService.stop(context)
             SleepLockWatchdogService.stop(context)
             safeStopLockTask(activity)
             SleepLockSession.setLocked(context, false)
@@ -184,6 +187,7 @@ class SleepLockModule(reactContext: ReactApplicationContext) :
         }
       } else {
         // Background fetch / no Activity — unlock session; stopLockTask on next resume.
+        UnlockWakeMonitorService.stop(context)
         SleepLockWatchdogService.stop(context)
         SleepLockSession.setPendingStopLockTask(true)
         SleepLockSession.setLocked(context, false)
@@ -197,6 +201,52 @@ class SleepLockModule(reactContext: ReactApplicationContext) :
   @ReactMethod
   fun isLocked(promise: Promise) {
     promise.resolve(SleepLockSession.isLocked(reactApplicationContext))
+  }
+
+  /**
+   * Step 198 — start FGS unlock monitor (manual test / soft-lock wake detect).
+   * Registers ACTION_USER_PRESENT at runtime — not via the manifest.
+   */
+  @ReactMethod
+  fun startUnlockWakeMonitor(promise: Promise) {
+    try {
+      UnlockWakeMonitorService.start(reactApplicationContext)
+      promise.resolve(null)
+    } catch (e: Exception) {
+      promise.reject("E_UNLOCK_MONITOR", e.message, e)
+    }
+  }
+
+  @ReactMethod
+  fun stopUnlockWakeMonitor(promise: Promise) {
+    try {
+      UnlockWakeMonitorService.stop(reactApplicationContext)
+      promise.resolve(null)
+    } catch (e: Exception) {
+      promise.reject("E_UNLOCK_MONITOR", e.message, e)
+    }
+  }
+
+  /** Epoch ms of last ACTION_USER_PRESENT, or -1 if none. */
+  @ReactMethod
+  fun getLastUnlockEventMs(promise: Promise) {
+    try {
+      promise.resolve(
+        UnlockEventStore.lastUnlockMs(reactApplicationContext).toDouble()
+      )
+    } catch (e: Exception) {
+      promise.reject("E_UNLOCK_EVENT", e.message, e)
+    }
+  }
+
+  /** JSON array of recent unlock events for adb / contract inspection. */
+  @ReactMethod
+  fun getUnlockEventLogJson(promise: Promise) {
+    try {
+      promise.resolve(UnlockEventStore.unlockLogJson(reactApplicationContext))
+    } catch (e: Exception) {
+      promise.reject("E_UNLOCK_EVENT", e.message, e)
+    }
   }
 
   @ReactMethod

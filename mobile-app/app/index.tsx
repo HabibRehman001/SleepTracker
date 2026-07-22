@@ -9,6 +9,7 @@ import {
   classifyLockCapability,
 } from '../native'
 import { PermissionRevokedBanner } from '../components/permissions/PermissionRevokedBanner'
+import { WeekStartSummaryCard } from '../components/reports/WeekStartSummaryCard'
 import * as lockService from '../services/lockService'
 import { registerMotionSampleTask } from '../services/backgroundTasks'
 import { syncHomeGeofencing } from '../services/homeGeofence'
@@ -217,6 +218,11 @@ export default function HomeScreen() {
       .catch((err: unknown) => {
         console.warn('[MONTH_END_SUMMARY] sync failed', err)
       })
+    void import('../services/weekStartSummary')
+      .then((m) => m.syncWeekStartSummaryNotification())
+      .catch((err: unknown) => {
+        console.warn('[WEEK_START_SUMMARY] sync failed', err)
+      })
   }, [notificationSetupDone])
 
   useEffect(() => {
@@ -368,6 +374,7 @@ export default function HomeScreen() {
       }}
       testID="home-screen"
     >
+      <WeekStartSummaryCard />
       <Text className="text-foreground text-3xl font-semibold mb-3">
         Sleep Lock
       </Text>
@@ -491,6 +498,13 @@ export default function HomeScreen() {
         <Pressable className="px-4 py-2.5" testID="open-monthly-report">
           <Text className="text-sidebar-primary text-[15px] font-medium">
             Monthly report
+          </Text>
+        </Pressable>
+      </Link>
+      <Link href={'/week-start-summary' as Href} asChild>
+        <Pressable className="px-4 py-2.5" testID="open-week-start-summary">
+          <Text className="text-sidebar-primary text-[15px] font-medium">
+            Start of week summary
           </Text>
         </Pressable>
       </Link>

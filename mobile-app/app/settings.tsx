@@ -1,6 +1,6 @@
 import { Link, type Href } from 'expo-router'
 import { useEffect } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Platform, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -19,6 +19,11 @@ import {
   GEOFENCE_BATTERY_TITLE,
   GEOFENCE_OVERNIGHT_DRAIN_BUDGET_PERCENT,
 } from '../services/geofenceBattery'
+import {
+  IOS_WAKE_PROXY_HONESTY_BODY,
+  IOS_WAKE_PROXY_HONESTY_SHORT,
+  IOS_WAKE_PROXY_HONESTY_TITLE,
+} from '../services/iosWakeProxyMath'
 import {
   SOAK_MANUAL_CHECKLIST,
   SOAK_MIN_REAL_NIGHTS,
@@ -272,6 +277,32 @@ export default function SettingsScreen() {
           </Text>
         ))}
       </View>
+
+      {Platform.OS === 'ios' ? (
+        <View
+          className="bg-card border border-border rounded-lg px-4 py-4 mb-4"
+          testID="settings-ios-wake-proxy"
+        >
+          <Text
+            className="text-foreground text-[15px] font-semibold mb-2"
+            testID="settings-ios-wake-proxy-title"
+          >
+            {IOS_WAKE_PROXY_HONESTY_TITLE}
+          </Text>
+          <Text
+            className="text-muted-foreground text-sm leading-5"
+            testID="settings-ios-wake-proxy-body"
+          >
+            {IOS_WAKE_PROXY_HONESTY_BODY}
+          </Text>
+          <Text
+            className="text-muted-foreground text-xs mt-3 leading-5"
+            testID="settings-ios-wake-proxy-short"
+          >
+            {IOS_WAKE_PROXY_HONESTY_SHORT}
+          </Text>
+        </View>
+      ) : null}
 
       <Link href={'/current-location' as Href} asChild>
         <Pressable className="py-3" testID="settings-open-current-location">

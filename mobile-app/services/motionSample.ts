@@ -22,6 +22,7 @@ export {
   isStatic,
   MOTION_SAMPLE_INTERVAL_SECONDS,
   MOTION_SAMPLE_LOG_MAX,
+  CONTINUOUS_MOTION_LOG_MAX,
   STATIC_THRESHOLD,
   type MotionSample,
 } from './motionSampleMath'

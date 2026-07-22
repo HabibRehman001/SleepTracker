@@ -1,6 +1,8 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { buildMonthComparison } from '../services/comparison.service'
 import { aggregateMonthlyStats } from '../services/monthlyStats.service'
+import { listScheduleAdherence } from '../services/scheduleAdherence.service'
+import { aggregateWeeklyStats } from '../services/weeklyStats.service'
 
 const router = Router()
 
@@ -40,6 +42,66 @@ router.get(
     const month = /^\d{4}-\d{2}$/.test(raw) ? raw : undefined
     const comparison = await buildMonthComparison(month)
     res.status(200).json(comparison)
+  })
+)
+
+/**
+ * GET /stats/adherence?range=30d — bedtime drift vs locked schedule (Step 202).
+ * Each passive-ongoing night → adherenceMinutes (positive = late).
+ */
+router.get(
+  '/adherence',
+  asyncHandler(async (req, res) => {
+    const range =
+      typeof req.query.range === 'string' ? req.query.range : '30d'
+    try {
+      const result = await listScheduleAdherence(range)
+      res.status(200).json({
+        range,
+        sleepTime: result.sleepTime,
+        count: result.count,
+        nights: result.nights.map((n) => ({
+          sleepDayKey: n.sleepDayKey,
+          date: n.date,
+          adherenceMinutes: n.adherenceMinutes,
+          passiveBedTime: n.passiveBedTime,
+          lockedSleepAt: n.lockedSleepAt,
+          wakeTime: n.wakeTime,
+        })),
+      })
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Invalid adherence query'
+      res.status(400).json({ message })
+    }
+  })
+)
+
+/**
+ * GET /stats/weekly — past 7 days of passive-ongoing nights + avg adherence
+ * and avg duration (Step 203). Computed fresh each request.
+ */
+router.get(
+  '/weekly',
+  asyncHandler(async (_req, res) => {
+    const weekly = await aggregateWeeklyStats()
+    res.status(200).json({
+      from: weekly.from,
+      to: weekly.to,
+      days: weekly.days,
+      nightCount: weekly.nightCount,
+      avgDurationMinutes: weekly.avgDurationMinutes,
+      avgAdherenceMinutes: weekly.avgAdherenceMinutes,
+      lockedSleepTime: weekly.lockedSleepTime,
+      nights: weekly.nights.map((n) => ({
+        sleepDayKey: n.sleepDayKey,
+        date: n.date,
+        bedTime: n.bedTime,
+        wakeTime: n.wakeTime,
+        durationMinutes: n.durationMinutes,
+        adherenceMinutes: n.adherenceMinutes,
+      })),
+    })
   })
 )
 

@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-22 (Step 195 distribution policy)
+Last updated: 2026-07-22 (Step 204 week-start summary)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -22,6 +22,33 @@ Stack decision note:
 - Current source of truth is Prisma/SQLite under Backend/src/.
 - Old Mongo/Express root files were removed. mongoose/jwt remain in
   package.json as leftover deps (not used by current src/).
+
+================================================================================
+1b. WHERE WE ARE (roadmap end-state)
+================================================================================
+Phase 1 — shippable today
+  Fully working local analytics dashboard (web-app + Backend :4000). Finds real
+  patterns in sleep data. No native/OS blockers. Could ship as-is indefinitely
+  (sealed v1.0-web, Step 113).
+
+Phase 2 — working enforcement app (mobile-app + mobile-server :4001)
+  - Android: full hard-lock + call screening on a personal sideloaded phone
+    (Device Owner via ADB — Step 195: not a Play “locks phone / blocks calls”
+    consumer listing).
+  - iOS: genuine but softer app-blocking via Family Controls (no call-block /
+    hard kiosk parity — Step 114 LOCKED).
+  - Both: auto-detected schedule, immutable once set (24h override only),
+    geofenced arrival-aware lock timing, pedometer / activity tracking,
+    monthly report + improvement verdict, optional Phase 1 JSON export bridge.
+
+Highest-risk remaining work (not code)
+  - Manual one-time OS enrollment: Device Owner (138) + Family Controls (139).
+  - Real-device overnight soak ≥3 nights/platform (192).
+  Budget calendar time for those; everything else is standard React / Node /
+  React Native.
+
+Distribution (195 LOCKED): personal-sideload for full Android lock; soft-lock
+store path only with soft-lock-honest copy if pursued later.
 
 ================================================================================
 2. COMPLETE FOLDER STRUCTURE
@@ -1110,6 +1137,57 @@ copy (no Device Owner / call-block / kiosk claims).
 Step 196 polish priority: soft-lock UX + accuracy, not Play hard-lock marketing.
 npm run test:distribution-policy.
 
+----- 6.143 Continuous auto-detection (Step 197) -----
+MOTION_SAMPLE stays registered forever (never unregistered after baseline).
+Same static-window logic (141–144) runs every night via runContinuousDetectionOnce
+in parallel with SCHEDULED_LOCK. Local night log retains weeks of detections;
+sample log ≥1 week. npm run test:continuous-detection.
+
+----- 6.144 Unlock wake detect — Android (Step 198) -----
+ACTION_USER_PRESENT → recordUnlockEvent(epochMs) as real wake time.
+UnlockReceiver registered at runtime inside UnlockWakeMonitorService (FGS);
+not a manifest-implicit receiver. Starts with enableLock; JS:
+startUnlockWakeMonitor / getLastUnlockEventMs.
+npm run test:unlock-wake. MANUAL: lock+unlock device → event within ~1s.
+
+----- 6.145 Approximate wake — iOS (Step 199) -----
+No system unlock broadcast for 3P apps. Proxy: first AppState → active after
+a qualifying static window ends (watchIosWakeProxy in root layout). Records
+only if opened within ~15 min of window end; hours later → no wake event
+(never guess). Settings honesty copy (approximation, not a guarantee).
+npm run test:ios-wake-proxy.
+
+----- 6.146 Filter false wake-ups (Step 200) -----
+findTrueWakeEvent(unlockEvents, staticWindowEnd, samples): earliest unlock
+near window end after which motion stays non-static ≥20 min (sustained
+activity). Brief 2 AM / dawn glance + fall back asleep is rejected.
+npm run test:true-wake — synthetic 6:10 stillness vs 11:55 activity.
+
+----- 6.147 Passive vs enforced sessions (Step 201) -----
+ActivitySession.source enum: baseline-auto | locked-schedule | passive-ongoing.
+Unique (date, source): same night keeps detected bed/wake (passive-ongoing)
+and enforced times (locked-schedule) as separate rows. GET /sessions?source=
+filters independently. Continuous detection POSTs passive-ongoing each night.
+npm run test:passive-sessions (mobile-server).
+
+----- 6.148 Schedule adherence (Step 202) -----
+adherenceMinutes = differenceInMinutes(passive.bedTime, locked.sleepTime).
+Positive = late drift (fell asleep after locked bedtime). GET /stats/adherence
+lists passive nights vs enforced schedule. npm run test:schedule-adherence —
+40 min late detection → +40.
+
+----- 6.149 Weekly aggregation (Step 203) -----
+GET /stats/weekly — past 7 days of passive-ongoing nights (detected bed/wake),
+avg adherence + avg duration, computed fresh each request (not hardcoded).
+Ignores locked-schedule rows. npm run test:weekly-stats — 7-night spreadsheet
+match (avg duration 465, avg adherence +30).
+
+----- 6.150 Start-of-week summary (Step 204) -----
+Insights-style card auto on Monday; /week-start-summary screen. Local
+notification Monday 09:00 deep-links (sleeplock://week-start-summary). Copy
+from GET /stats/weekly passive nights (avg bed/wake, adherence, best/drifted).
+npm run test:week-start-summary — clock past week-start + real numbers.
+
 ----- 6.115 Pre-lock countdown screen (Step 156) -----
 /lock-countdown — full-screen timer when the app opens inside the 30-min warning
 window. Sets expectation before Soft Lock engages; optional “I’ll wind down”
@@ -1126,6 +1204,7 @@ GET  /api/health               health JSON (mobile-server also :4001)
 Mobile-server (Phase 2, :4001):
 POST /sessions                 create ActivitySession (JSON body)
 GET  /sessions?range=30d       list sessions (7d|30d|90d|all; default 30d)
+     &source=passive-ongoing|locked-schedule|baseline-auto (Step 201)
      (also mounted at /api/sessions)
 POST /schedule                 create schedule once (409 if exists)
 POST /schedule/change-request  request delayed change (24h; Step 151)
@@ -1133,6 +1212,8 @@ GET  /schedule                 get current schedule (404 if none)
      (also mounted at /api/schedule)
 GET  /stats/monthly?limit=12   monthly agg: duration, bed/wake, consistency
 GET  /stats/comparison         this vs last month + improved + deltas
+GET  /stats/adherence?range=30d  bedtime drift vs locked schedule (Step 202)
+GET  /stats/weekly             past 7d passive nights + avg adherence/duration (203)
      (also /api/stats/*)
 PUT  /home-location            upsert home lat/lng (geofence pin)
 GET  /home-location            { home: dto | null } always 200 (no 404)
@@ -2023,6 +2104,53 @@ Tests (Backend):
 - Moved verification out of ad-hoc scripts into tests/.
 - TESTED: npm test → ALL TESTS PASSED (5 analytics + 3 repository).
 - TESTED: npm run test:api → API SMOKE PASSED (4 endpoints).
+
+[2026-07-22] Step 204 — Start-of-week summary (Insights card + Monday notif)
+- /week-start-summary + home card on Monday; body from GET /stats/weekly.
+- Local notification Mon 09:00 → deep link; sync on launch / permission grant.
+- TESTED: npm run test:week-start-summary (clock past week-start; real numbers).
+
+[2026-07-22] Step 203 — Weekly aggregation (passive-ongoing)
+- GET /stats/weekly: each night's detected bed/wake (7d), avg adherence + duration.
+- Fresh from Mongo each request; locked-schedule excluded. Spreadsheet-checked.
+- TESTED: npm run test:weekly-stats.
+
+[2026-07-22] Step 202 — Schedule adherence (bedtime drift minutes)
+- adherenceMinutes = differenceInMinutes(passive.bedTime, locked.sleepTime).
+- GET /stats/adherence; +40 when passive falls asleep 40 min after lock bedtime.
+- TESTED: npm run test:schedule-adherence.
+
+[2026-07-22] Step 201 — Passive vs enforced ActivitySessions
+- source enum += passive-ongoing; unique (date, source).
+- Continuous detection POSTs detected bed/wake; lock keeps locked-schedule.
+- GET /sessions?source= filters independently; home-arrival never mutates passive.
+- TESTED: npm run test:passive-sessions; test:schemas.
+
+[2026-07-22] Step 200 — Filter false wake-ups (sustained activity)
+- findTrueWakeEvent: earliest unlock near static-window end with ≥20 min
+  non-static motion after; dawn glance + stillness rejected.
+- TESTED: npm run test:true-wake (6:10 false vs 11:55 true).
+
+[2026-07-22] Step 199 — Approximate wake time (iOS AppState proxy)
+- First AppState → active after continuous static window ends; ~15 min window.
+- Hours without open → no wake event (honesty in Settings). Not a guarantee.
+- TESTED: npm run test:ios-wake-proxy.
+
+[2026-07-22] Step 198 — Unlock wake (ACTION_USER_PRESENT)
+- UnlockReceiver + UnlockEventStore; FGS UnlockWakeMonitorService runtime register.
+- enableLock starts monitor; getLastUnlockEventMs for accurate wake timestamp.
+- TESTED: npm run test:unlock-wake. MANUAL: lock/unlock phone within ~1s.
+
+[2026-07-22] Step 197 — Continuous auto-detection (permanent MOTION_SAMPLE)
+- Never unregister after baseline; nightly findLongestSleepWindow → local log.
+- Week-of-nights contract: 7/7 static windows after schedule lock.
+- TESTED: npm run test:continuous-detection; test:motion-sample.
+
+[2026-07-22] Roadmap end-state snapshot
+- Phase 1: local analytics dashboard — usable indefinitely, no OS blockers.
+- Phase 2: enforcement app — Android hard-lock (sideload DO) + iOS soft lock;
+  immutable schedule, geofence arrival timing, steps; soak + DO/FC enrollment
+  are the real remaining risks (not more framework code).
 
 [2026-07-22] Step 195 — Store / distribution policy (LOCKED)
 - Decision: personal-sideload for Device Owner full lock; not Play “locks phone /

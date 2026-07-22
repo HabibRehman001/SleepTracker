@@ -10,6 +10,7 @@ import {
   MOTION_SAMPLE_INTERVAL_SECONDS,
   runMotionSampleOnce,
 } from './motionSample'
+import { runContinuousDetectionOnce } from './continuousDetection'
 import {
   runScheduledLockOnce,
   SCHEDULED_LOCK_INTERVAL_SECONDS,
@@ -19,7 +20,10 @@ import { runPreLockWarningOnce } from './preLockWarning'
 import './homeGeofence'
 
 export const BACKGROUND_TASKS = {
-  /** Periodic accel magnitude proxy — “is the phone still?” (Step 141). */
+  /**
+   * Step 141 / 197 — permanent accel sampling + nightly static-window detection.
+   * Never unregistered after baseline (runs forever alongside SCHEDULED_LOCK).
+   */
   motionSample: 'MOTION_SAMPLE',
   /**
    * Steps 152–154 — clock vs sleep/wake; enable/disable lock + pre-lock warning.
@@ -41,6 +45,8 @@ const SCHEDULED_LOCK = BACKGROUND_TASKS.scheduledLock
 TaskManager.defineTask(MOTION_SAMPLE, async () => {
   try {
     await runMotionSampleOnce()
+    // Step 197 — same static-window logic every night, forever.
+    await runContinuousDetectionOnce()
     return BackgroundFetch.BackgroundFetchResult.NewData
   } catch (err) {
     console.warn('[MOTION_SAMPLE] failed', err)
@@ -97,7 +103,7 @@ async function canRegisterBackgroundFetch(
 
 /**
  * Register 15-minute background fetch for MOTION_SAMPLE.
- * Safe to call repeatedly — no-ops if already registered or unsupported.
+ * Step 197 — permanent job; safe to call repeatedly after baseline / lock-in.
  */
 export async function registerMotionSampleTask(): Promise<boolean> {
   if (!(await canRegisterBackgroundFetch('MOTION_SAMPLE'))) return false
@@ -113,7 +119,19 @@ export async function registerMotionSampleTask(): Promise<boolean> {
   return true
 }
 
+/**
+ * Step 197 — MOTION_SAMPLE is permanent. Unregister is a no-op so baseline
+ * completion / lock-in never stops nightly static-window detection.
+ */
+export const MOTION_SAMPLE_IS_PERMANENT = true
+
 export async function unregisterMotionSampleTask(): Promise<void> {
+  if (MOTION_SAMPLE_IS_PERMANENT) {
+    console.warn(
+      '[MOTION_SAMPLE] unregister ignored — permanent continuous detection (Step 197)'
+    )
+    return
+  }
   if (Platform.OS === 'web') return
   const already = await TaskManager.isTaskRegisteredAsync(MOTION_SAMPLE)
   if (!already) return

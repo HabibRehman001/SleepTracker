@@ -21,6 +21,8 @@ assert.match(routes, /router\.get/)
 assert.match(routes, /router\.put|home-arrival/)
 assert.match(routes, /upsertHomeArrivalForSleepDay/)
 assert.match(routes, /range/)
+assert.match(routes, /source/)
+assert.match(routes, /passive-ongoing|ACTIVITY_SOURCES/)
 
 const arrival = new Date(2026, 6, 22, 4, 30, 0, 0)
 assert.equal(formatHomeArrivalHHMM(arrival), '04:30')

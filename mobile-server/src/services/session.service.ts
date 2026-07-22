@@ -87,19 +87,43 @@ export function assertValidSource(source: unknown): asserts source is ActivitySo
   }
 }
 
+function parseOptionalHomeArrival(
+  value: Date | string | null | undefined
+): Date | null {
+  if (value == null || value === '') return null
+  return parseDate(value, 'homeArrivalTime')
+}
+
+/**
+ * Create or update the single row for this sleep day × source
+ * (Step 201 — passive and locked coexist as separate rows).
+ */
 export async function createActivitySession(input: CreateSessionInput) {
   assertValidSource(input.source)
   const date = parseDate(input.date, 'date')
   const bedTime = parseDate(input.bedTime, 'bedTime')
   const wakeTime = parseDate(input.wakeTime, 'wakeTime')
+  const homeArrivalTime = parseOptionalHomeArrival(input.homeArrivalTime)
+  const { start, end } = sleepDayDateBounds(date)
 
-  const homeArrivalTime =
-    input.homeArrivalTime == null || input.homeArrivalTime === ''
-      ? null
-      : parseDate(input.homeArrivalTime, 'homeArrivalTime')
+  const existing = await ActivitySession.findOne({
+    date: { $gte: start, $lt: end },
+    source: input.source,
+  })
+
+  if (existing) {
+    existing.bedTime = bedTime
+    existing.wakeTime = wakeTime
+    if (input.stepsCount != null) existing.stepsCount = input.stepsCount
+    if (input.homeArrivalTime !== undefined) {
+      existing.homeArrivalTime = homeArrivalTime
+    }
+    await existing.save()
+    return existing.toObject()
+  }
 
   const doc = await ActivitySession.create({
-    date,
+    date: sleepDayDate(date),
     bedTime,
     wakeTime,
     source: input.source,
@@ -110,8 +134,8 @@ export async function createActivitySession(input: CreateSessionInput) {
 }
 
 /**
- * Step 175 — persist homeArrivalTime on the current sleep day's session.
- * Upserts a stub session when none exists yet for that day.
+ * Step 175 — persist homeArrivalTime on the locked-schedule row for the sleep day.
+ * Never mutates passive-ongoing (Step 201 — keep actual vs enforced distinct).
  */
 export async function upsertHomeArrivalForSleepDay(
   input: UpsertHomeArrivalInput
@@ -120,18 +144,24 @@ export async function upsertHomeArrivalForSleepDay(
   const { start, end } = sleepDayDateBounds(homeArrivalTime)
   const date = sleepDayDate(homeArrivalTime)
 
+  const source: ActivitySource = input.source ?? 'locked-schedule'
+  assertValidSource(source)
+  // Home arrival is enforcement telemetry — only attach to locked (or explicit) row.
+  const targetSource =
+    source === 'passive-ongoing' ? 'locked-schedule' : source
+
   const existing = await ActivitySession.findOne({
     date: { $gte: start, $lt: end },
+    source: targetSource,
   }).sort({ updatedAt: -1 })
 
   if (existing) {
     existing.homeArrivalTime = homeArrivalTime
+    if (input.bedTime) existing.bedTime = parseDate(input.bedTime, 'bedTime')
+    if (input.wakeTime) existing.wakeTime = parseDate(input.wakeTime, 'wakeTime')
     await existing.save()
     return existing.toObject()
   }
-
-  const source = input.source ?? 'locked-schedule'
-  assertValidSource(source)
 
   const bedTime = input.bedTime
     ? parseDate(input.bedTime, 'bedTime')
@@ -148,16 +178,25 @@ export async function upsertHomeArrivalForSleepDay(
     date,
     bedTime,
     wakeTime,
-    source,
+    source: targetSource,
     stepsCount: 0,
     homeArrivalTime,
   })
   return doc.toObject()
 }
 
-export async function listActivitySessions(range?: string) {
+/** List sessions; optional source filter (Step 201 — query independently). */
+export async function listActivitySessions(
+  range?: string,
+  source?: ActivitySource | string
+) {
   const cutoff = rangeCutoff(range ?? '30d')
-  const filter = cutoff ? { date: { $gte: cutoff } } : {}
+  const filter: Record<string, unknown> = {}
+  if (cutoff) filter.date = { $gte: cutoff }
+  if (source != null && source !== '') {
+    assertValidSource(source)
+    filter.source = source
+  }
   const docs = await ActivitySession.find(filter).sort({ date: -1 }).lean()
   return docs
 }

@@ -1,10 +1,13 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { Stack } from 'expo-router'
+import * as Notifications from 'expo-notifications'
+import { router, Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect } from 'react'
-import { StyleSheet } from 'react-native'
+import { Platform, StyleSheet } from 'react-native'
 
+import { watchIosWakeProxy } from '../services/iosWakeProxy'
 import { queryClient } from '../services/queryClient'
+import { isWeekStartSummaryNotificationData } from '../services/weekStartSummary'
 import { useAuthStore } from '../store/authStore'
 import { darkTokens } from '../theme/tokens'
 
@@ -26,6 +29,42 @@ import '../global.css'
 export default function RootLayout() {
   useEffect(() => {
     void useAuthStore.getState().hydrate()
+  }, [])
+
+  // Step 199 — iOS wake ≈ first AppState active after static window (approximation).
+  useEffect(() => {
+    if (Platform.OS === 'android') return
+    return watchIosWakeProxy()
+  }, [])
+
+  // Step 204 — week-start notification → /week-start-summary deep link.
+  useEffect(() => {
+    const go = (data: Record<string, unknown> | undefined) => {
+      if (isWeekStartSummaryNotificationData(data)) {
+        router.push('/week-start-summary')
+      }
+    }
+
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) {
+        go(
+          response.notification.request.content.data as
+            | Record<string, unknown>
+            | undefined
+        )
+      }
+    })
+
+    const sub = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        go(
+          response.notification.request.content.data as
+            | Record<string, unknown>
+            | undefined
+        )
+      }
+    )
+    return () => sub.remove()
   }, [])
 
   return (
@@ -123,6 +162,10 @@ export default function RootLayout() {
         <Stack.Screen
           name="monthly-report"
           options={{ title: 'Monthly report', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen
+          name="week-start-summary"
+          options={{ title: 'Start of week', headerBackTitle: 'Back' }}
         />
         <Stack.Screen
           name="call-allowlist"

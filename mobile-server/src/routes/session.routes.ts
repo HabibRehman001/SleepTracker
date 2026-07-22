@@ -1,4 +1,5 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
+import { ACTIVITY_SOURCES } from '../models/ActivitySession'
 import {
   createActivitySession,
   formatHomeArrivalHHMM,
@@ -16,10 +17,20 @@ function asyncHandler(
   }
 }
 
+function parseSourceQuery(
+  value: unknown
+): (typeof ACTIVITY_SOURCES)[number] | undefined {
+  if (typeof value !== 'string' || value === '') return undefined
+  if ((ACTIVITY_SOURCES as readonly string[]).includes(value)) {
+    return value as (typeof ACTIVITY_SOURCES)[number]
+  }
+  return undefined
+}
+
 /**
  * POST /sessions — RN pushes each night's detected/enforced session.
  * PUT /sessions/home-arrival — Step 175 persist homeArrivalTime for sleep day.
- * GET /sessions?range=30d — list sessions in range (default 30d).
+ * GET /sessions?range=30d&source=passive-ongoing — list (optional source filter).
  */
 router.put(
   '/home-arrival',
@@ -30,16 +41,20 @@ router.put(
       return
     }
     try {
+      const rawSource =
+        typeof body.source === 'string' ? body.source : undefined
+      const source =
+        rawSource &&
+        (ACTIVITY_SOURCES as readonly string[]).includes(rawSource)
+          ? (rawSource as (typeof ACTIVITY_SOURCES)[number])
+          : undefined
       const session = await upsertHomeArrivalForSleepDay({
         homeArrivalTime: body.homeArrivalTime as string,
         bedTime:
           typeof body.bedTime === 'string' ? body.bedTime : undefined,
         wakeTime:
           typeof body.wakeTime === 'string' ? body.wakeTime : undefined,
-        source:
-          body.source === 'baseline-auto' || body.source === 'locked-schedule'
-            ? body.source
-            : undefined,
+        source,
       })
       const arrival =
         session.homeArrivalTime instanceof Date
@@ -75,7 +90,7 @@ router.post(
         date: body.date as string,
         bedTime: body.bedTime as string,
         wakeTime: body.wakeTime as string,
-        source: body.source as 'baseline-auto' | 'locked-schedule',
+        source: body.source as (typeof ACTIVITY_SOURCES)[number],
         stepsCount:
           typeof body.stepsCount === 'number' ? body.stepsCount : undefined,
         homeArrivalTime:
@@ -96,9 +111,25 @@ router.get(
   asyncHandler(async (req, res) => {
     const range =
       typeof req.query.range === 'string' ? req.query.range : '30d'
+    const sourceParam = parseSourceQuery(req.query.source)
+    if (
+      typeof req.query.source === 'string' &&
+      req.query.source !== '' &&
+      sourceParam == null
+    ) {
+      res.status(400).json({
+        message: `source must be one of: ${ACTIVITY_SOURCES.join(', ')}`,
+      })
+      return
+    }
     try {
-      const sessions = await listActivitySessions(range)
-      res.status(200).json({ range, count: sessions.length, sessions })
+      const sessions = await listActivitySessions(range, sourceParam)
+      res.status(200).json({
+        range,
+        source: sourceParam ?? null,
+        count: sessions.length,
+        sessions,
+      })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Invalid range'
       res.status(400).json({ message })
