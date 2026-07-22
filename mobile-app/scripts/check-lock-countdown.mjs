@@ -1,5 +1,5 @@
 /**
- * Step 156 — full-screen pre-lock countdown when the app is opened in the warning window.
+ * Step 156 — full-screen pre-lock countdown (schedule-only).
  */
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -17,7 +17,9 @@ const layout = readFileSync(join(root, 'app/_layout.tsx'), 'utf8')
 
 assert.match(screen, /lock-countdown-screen|lock-countdown-timer/)
 assert.match(screen, /formatCountdown|Phone locks soon/)
+assert.match(screen, /loadHomeArrivalTime/)
 assert.match(index, /lock-countdown|shouldShowLockCountdown/)
+assert.match(index, /loadHomeArrivalTime/)
 assert.match(layout, /lock-countdown/)
 
 assert.equal(formatCountdown(30 * 60 * 1000), '30:00')
@@ -26,14 +28,13 @@ assert.equal(formatCountdown(5 * 1000), '0:05')
 assert.equal(formatCountdown(0), '0:00')
 
 function at(h, m) {
-  return new Date(2026, 7, 22, h, m, 0, 0)
+  return new Date(2026, 6, 22, h, m, 0, 0)
 }
 
-const arrival = at(4, 0)
 const gate = shouldShowLockCountdown({
   now: at(4, 35),
   scheduledSleepHHMM: '05:00',
-  homeArrivalTime: arrival,
+  wakeTimeHHMM: '12:00',
   scheduleLockedIn: true,
   currentlyLocked: false,
 })
@@ -45,7 +46,7 @@ assert.equal(
   shouldShowLockCountdown({
     now: at(4, 35),
     scheduledSleepHHMM: '05:00',
-    homeArrivalTime: arrival,
+    wakeTimeHHMM: '12:00',
     scheduleLockedIn: true,
     currentlyLocked: false,
     dismissedThisSession: true,
@@ -57,7 +58,7 @@ assert.equal(
   shouldShowLockCountdown({
     now: at(3, 0),
     scheduledSleepHHMM: '05:00',
-    homeArrivalTime: arrival,
+    wakeTimeHHMM: '12:00',
     scheduleLockedIn: true,
     currentlyLocked: false,
   }).show,

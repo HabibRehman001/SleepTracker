@@ -1,6 +1,7 @@
 /**
- * Step 155 / stub for Step 175 — record “arrived home” for late-arrival lock shift.
- * In-memory + optional AsyncStorage bridge used by background SCHEDULED_LOCK.
+ * Home-arrival helpers (Steps 174–175).
+ * Geofence Enter → local record + AsyncStorage + backend session upsert.
+ * Feeds Step 155 late-arrival lock timing via loadHomeArrivalTime().
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -10,14 +11,29 @@ import {
   getHomeGeofenceState,
   setHomeGeofenceState,
 } from './geofence'
+import {
+  formatHomeArrivalHHMM,
+  sleepDayDateKey,
+} from './homeArrivalMath'
+import { persistHomeArrivalToBackend } from './sessionApi'
 
 export const HOME_ARRIVAL_STORAGE_KEY = '@sleep_lock/home_arrival_iso'
+export const HOME_ARRIVAL_SLEEP_DAY_KEY = '@sleep_lock/home_arrival_sleep_day'
+
+export {
+  formatHomeArrivalHHMM,
+  sleepDayDate,
+  sleepDayDateKey,
+  sleepDayDateBounds,
+} from './homeArrivalMath'
 
 let lastHomeArrivalIso: string | null = null
+let lastSleepDayKey: string | null = null
 
-/** Step 175 enter-home event should call this (also wired from geofence false→true). */
+/** Stamp arrival in memory + geofence inside flag. */
 export function recordHomeArrival(at: Date = new Date()): Date {
   lastHomeArrivalIso = at.toISOString()
+  lastSleepDayKey = sleepDayDateKey(at)
   setHomeGeofenceState(true)
   return at
 }
@@ -30,12 +46,10 @@ export function getHomeArrivalTime(): Date | null {
 
 export function clearHomeArrival(): void {
   lastHomeArrivalIso = null
+  lastSleepDayKey = null
 }
 
-/**
- * Geofence transition helper — enter home records arrival; exit clears for next cycle.
- * Step 175 will drive this from the real geofence task.
- */
+/** Apply enter/exit from HOME_GEOFENCE (or tests). */
 export function applyHomeGeofenceTransition(
   inside: boolean,
   at: Date = new Date()
@@ -45,7 +59,6 @@ export function applyHomeGeofenceTransition(
     recordHomeArrival(at)
   } else if (!inside) {
     setHomeGeofenceState(false)
-    // Keep lastHomeArrival for tonight's lock shift until wake/clear.
   } else {
     setHomeGeofenceState(inside)
   }
@@ -54,11 +67,17 @@ export function applyHomeGeofenceTransition(
 export async function persistHomeArrival(at: Date | null): Promise<void> {
   if (!at) {
     lastHomeArrivalIso = null
-    await AsyncStorage.removeItem(HOME_ARRIVAL_STORAGE_KEY)
+    lastSleepDayKey = null
+    await AsyncStorage.multiRemove([
+      HOME_ARRIVAL_STORAGE_KEY,
+      HOME_ARRIVAL_SLEEP_DAY_KEY,
+    ])
     return
   }
   lastHomeArrivalIso = at.toISOString()
+  lastSleepDayKey = sleepDayDateKey(at)
   await AsyncStorage.setItem(HOME_ARRIVAL_STORAGE_KEY, lastHomeArrivalIso)
+  await AsyncStorage.setItem(HOME_ARRIVAL_SLEEP_DAY_KEY, lastSleepDayKey)
 }
 
 export async function loadHomeArrivalTime(): Promise<Date | null> {
@@ -68,14 +87,42 @@ export async function loadHomeArrivalTime(): Promise<Date | null> {
   if (!raw) return null
   lastHomeArrivalIso = raw
   const d = new Date(raw)
-  return Number.isNaN(d.getTime()) ? null : d
+  if (Number.isNaN(d.getTime())) return null
+
+  // Drop stale arrival from a previous sleep day.
+  const storedDay =
+    lastSleepDayKey ??
+    (await AsyncStorage.getItem(HOME_ARRIVAL_SLEEP_DAY_KEY))
+  const todayKey = sleepDayDateKey(new Date())
+  if (storedDay && storedDay !== todayKey) {
+    clearHomeArrival()
+    await persistHomeArrival(null)
+    return null
+  }
+  lastSleepDayKey = storedDay ?? sleepDayDateKey(d)
+  return d
 }
 
+/**
+ * Step 174 Enter + Step 175 backend persist for this sleep day's session.
+ * Local persist always; backend best-effort (log + keep local on failure).
+ */
 export async function syncHomeArrivalFromGeofenceEnter(
   at: Date = new Date()
 ): Promise<Date> {
   const recorded = recordHomeArrival(at)
   await persistHomeArrival(recorded)
+  try {
+    const result = await persistHomeArrivalToBackend(recorded)
+    console.log(
+      '[HOME_ARRIVAL] backend',
+      result.homeArrivalHHMM ?? formatHomeArrivalHHMM(recorded),
+      'sleepDay',
+      sleepDayDateKey(recorded)
+    )
+  } catch (err) {
+    console.warn('[HOME_ARRIVAL] backend persist failed', err)
+  }
   return recorded
 }
 

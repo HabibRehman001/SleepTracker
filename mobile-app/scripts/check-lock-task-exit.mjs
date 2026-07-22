@@ -43,7 +43,6 @@ assert.equal(
     wakeTime: '12:00',
     currentlyLocked: true,
     scheduleLockedIn: true,
-    homeArrivalTime: at(3, 0),
   }).shouldDisable,
   true
 )
@@ -60,7 +59,6 @@ const result = await runScheduledLockOnce(at(12, 5), {
     wakeTime: '12:00',
     lockedIn: true,
   }),
-  loadHomeArrival: async () => at(3, 0),
 })
 assert.equal(result.disabled, true)
 assert.equal(disableCalls, 1)

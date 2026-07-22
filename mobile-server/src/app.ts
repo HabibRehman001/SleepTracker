@@ -11,7 +11,54 @@ import statsRoutes from './routes/stats.routes'
 import homeLocationRoutes from './routes/homeLocation.routes'
 import authRoutes from './routes/auth.routes'
 
-const corsOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:8081'
+/**
+ * CORS_ORIGIN can be a single origin or comma-separated list, e.g.
+ * http://localhost:8081,http://localhost:8082,http://127.0.0.1:8082
+ */
+function resolveCorsOrigin():
+  | boolean
+  | string
+  | ((
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void
+    ) => void) {
+  const raw = process.env.CORS_ORIGIN?.trim()
+  if (!raw || raw === '*') {
+    return true
+  }
+  const allowed = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  // Dev convenience: Expo often hops ports; also allow 127.0.0.1 ↔ localhost twins.
+  const expanded = new Set<string>(allowed)
+  for (const o of allowed) {
+    try {
+      const u = new URL(o)
+      if (u.hostname === 'localhost') {
+        expanded.add(`${u.protocol}//127.0.0.1${u.port ? `:${u.port}` : ''}`)
+      } else if (u.hostname === '127.0.0.1') {
+        expanded.add(`${u.protocol}//localhost${u.port ? `:${u.port}` : ''}`)
+      }
+    } catch {
+      // ignore malformed
+    }
+  }
+
+  return (origin, callback) => {
+    // Same-origin / non-browser (curl, RN native) — no Origin header.
+    if (!origin) {
+      callback(null, true)
+      return
+    }
+    if (expanded.has(origin)) {
+      callback(null, true)
+      return
+    }
+    callback(null, false)
+  }
+}
 
 const app = express()
 
@@ -23,7 +70,8 @@ app.use(lanOnlyMiddleware())
 
 app.use(
   cors({
-    origin: corsOrigin,
+    origin: resolveCorsOrigin(),
+    credentials: true,
   })
 )
 app.use(express.json())

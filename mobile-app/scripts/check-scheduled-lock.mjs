@@ -1,6 +1,5 @@
 /**
- * Step 152–153 — SCHEDULED_LOCK: sleepTime → enableLock, wakeTime → disableLock.
- * On-time arrivals use homeArrival early enough that lockTime === scheduledSleep.
+ * Step 152–153 / 155 — SCHEDULED_LOCK with late-arrival awareness.
  */
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -21,6 +20,7 @@ const math = readFileSync(join(root, 'services/scheduledLockMath.ts'), 'utf8')
 assert.match(bg, /SCHEDULED_LOCK/)
 assert.match(bg, /disableLock\(\)|result\.disabled/)
 assert.match(lock, /disableLock/)
+assert.match(lock, /loadHomeArrivalTime/)
 assert.match(math, /shouldDisable/)
 
 assert.equal(SCHEDULED_LOCK_INTERVAL_SECONDS, 15 * 60)
@@ -29,8 +29,7 @@ function at(h, m, day = 22) {
   return new Date(2026, 6, day, h, m, 0, 0)
 }
 
-/** Arrive early so effective lock == scheduled 04:00 */
-const earlyArrival = at(3, 0)
+const earlyArrival = at(3, 30)
 
 assert.equal(isInSleepWindow(at(4, 0), '04:00', '12:00'), true)
 assert.equal(isInSleepWindow(at(12, 0), '04:00', '12:00'), false)
@@ -49,15 +48,16 @@ assert.equal(
 
 assert.equal(
   decideScheduledLock({
-    now: at(11, 59),
+    now: at(4, 0),
     sleepTime: '04:00',
     wakeTime: '12:00',
-    currentlyLocked: true,
+    currentlyLocked: false,
     scheduleLockedIn: true,
-    homeArrivalTime: earlyArrival,
-  }).shouldDisable,
+    homeArrivalTime: null,
+  }).shouldEnable,
   false
 )
+
 assert.equal(
   decideScheduledLock({
     now: at(12, 0),

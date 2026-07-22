@@ -1,4 +1,4 @@
-import { Link, Redirect } from 'expo-router'
+import { Link, Redirect, type Href } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 
@@ -10,9 +10,11 @@ import {
 } from '../native'
 import * as lockService from '../services/lockService'
 import { registerMotionSampleTask } from '../services/backgroundTasks'
-import { loadHomeArrivalTime } from '../services/homeArrival'
+import { syncHomeGeofencing } from '../services/homeGeofence'
 import { shouldShowLockCountdown } from '../services/lockCountdownMath'
 import { isLockCountdownDismissedThisSession } from '../services/lockCountdownSession'
+import { loadHomeArrivalTime } from '../services/homeArrival'
+import { NEVER_ARRIVED_POLICY_SHORT } from '../services/neverArrivedPolicyMath'
 import { syncScheduledLockTrigger } from '../services/syncScheduledLock'
 import { useAuthStore } from '../store/authStore'
 import { useAppStore } from '../store/useAppStore'
@@ -79,6 +81,15 @@ export default function HomeScreen() {
   }, [motionSetupDone])
 
   useEffect(() => {
+    if (!homeSetupDone || homeLat == null || homeLng == null) return
+    void syncHomeGeofencing({ latitude: homeLat, longitude: homeLng }).catch(
+      (err: unknown) => {
+        console.warn('[HOME_GEOFENCE] sync failed', err)
+      }
+    )
+  }, [homeSetupDone, homeLat, homeLng])
+
+  useEffect(() => {
     if (!scheduleLockedIn) return
     void syncScheduledLockTrigger().catch((err: unknown) => {
       console.warn('[SCHEDULED_LOCK] sync failed', err)
@@ -96,15 +107,16 @@ export default function HomeScreen() {
     }
     let cancelled = false
     void (async () => {
-      const arrival = await loadHomeArrivalTime()
       const enforced = useScheduleStore.getState().getEnforcedTimes()
       if (!enforced) {
         if (!cancelled) setCountdownRedirect(false)
         return
       }
+      const arrival = await loadHomeArrivalTime()
       const gate = shouldShowLockCountdown({
         now: new Date(),
         scheduledSleepHHMM: enforced.bedtime,
+        wakeTimeHHMM: enforced.waketime,
         homeArrivalTime: arrival,
         scheduleLockedIn: true,
         currentlyLocked: isLocked,
@@ -145,7 +157,11 @@ export default function HomeScreen() {
   ])
 
   useEffect(() => {
-    if (!notificationSetupDone || homeSetupDone) return
+    if (!notificationSetupDone) return
+    if (homeSetupDone) {
+      void hydrateFromBackend()
+      return
+    }
     void hydrateFromBackend().then((home) => {
       if (home) setHomeSetupDone(true)
     })
@@ -288,6 +304,12 @@ export default function HomeScreen() {
         Stats-driven soft lock — reminders and schedule help, not a full system
         lockdown unless Device Owner is enabled.
       </Text>
+      <Text
+        className="text-muted-foreground text-center text-xs leading-5 mb-4"
+        testID="home-never-arrived-hint"
+      >
+        {NEVER_ARRIVED_POLICY_SHORT} See Settings for details.
+      </Text>
       {authUser ? (
         <Text
           className="text-muted-foreground text-xs mb-4"
@@ -358,6 +380,13 @@ export default function HomeScreen() {
         <Pressable className="px-4 py-2.5" testID="open-settings">
           <Text className="text-sidebar-primary text-[15px] font-medium">
             Settings
+          </Text>
+        </Pressable>
+      </Link>
+      <Link href={'/current-location' as Href} asChild>
+        <Pressable className="px-4 py-2.5" testID="open-current-location">
+          <Text className="text-sidebar-primary text-[15px] font-medium">
+            Current location
           </Text>
         </Pressable>
       </Link>

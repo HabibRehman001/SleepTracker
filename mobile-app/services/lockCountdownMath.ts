@@ -1,5 +1,5 @@
 /**
- * Step 156 — in-app lock countdown helpers (pure; Node-testable).
+ * Step 156 — in-app lock countdown helpers (uses effective lockTime; Node-testable).
  */
 
 import {
@@ -37,7 +37,8 @@ export type LockCountdownGate = {
 export function shouldShowLockCountdown(input: {
   now: Date
   scheduledSleepHHMM: string
-  homeArrivalTime: Date | null
+  wakeTimeHHMM?: string
+  homeArrivalTime?: Date | null
   scheduleLockedIn: boolean
   currentlyLocked: boolean
   dismissedThisSession?: boolean
@@ -55,14 +56,16 @@ export function shouldShowLockCountdown(input: {
   const effective = computeEffectiveLockTime({
     now: input.now,
     scheduledSleepHHMM: input.scheduledSleepHHMM,
+    wakeTimeHHMM: input.wakeTimeHHMM,
     homeArrivalTime: input.homeArrivalTime,
   })
+
   if (!effective.lockAt) {
     return {
       show: false,
       lockAt: null,
       remainingMs: 0,
-      reason: 'awaiting-home-arrival',
+      reason: 'deferred-late-arrival',
     }
   }
 

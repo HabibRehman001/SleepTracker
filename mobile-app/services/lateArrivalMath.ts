@@ -1,15 +1,22 @@
 /**
- * Step 155 — late arrival: lockTime = max(scheduledSleep, homeArrival + grace).
- * Pure Date math — Node-testable.
+ * Step 155 / 176 — late arrival + dynamic lock-warning trigger.
+ * effectiveLockTime = Math.max(scheduledSleepTime, homeArrivalTime + GRACE_MINUTES)
+ * homeArrivalTime comes from real HOME_GEOFENCE Enter (Steps 174–175), not a mock.
  */
 
 import { clockToMinutes } from './baselineDetection'
 
-/** Grace after arriving home before lock (matches LOCK_WARNING_MINUTES = 30). */
-export const ARRIVAL_GRACE_PERIOD_MS = 30 * 60 * 1000
+/** Grace minutes after home arrival before lock / warning window (Step 176). */
+export const GRACE_MINUTES = 30
+
+/** Grace after arriving home before lock (ms). */
+export const ARRIVAL_GRACE_PERIOD_MS = GRACE_MINUTES * 60 * 1000
 
 export type EffectiveLockResult = {
-  /** null = still commuting / no arrival yet — do not lock at scheduled time alone. */
+  /**
+   * Effective lock instant, or null when past scheduled sleep but still
+   * commuting (no homeArrival yet) — do not lock while out.
+   */
   lockAt: Date | null
   scheduledSleepAt: Date
   arrivalBasedLockAt: Date | null
@@ -25,16 +32,45 @@ export function atTimeOnDay(day: Date, hhmm: string): Date {
 }
 
 /**
- * Scheduled sleep occurrence for this cycle.
- * Uses homeArrival's calendar day when present (late 4:30 arrival → today's 4:00 sleep).
+ * Scheduled sleep for the current or next cycle.
+ * Overnight windows (e.g. 22:00→07:00): before wake today → yesterday's sleep.
+ * Same-day (e.g. 04:00→12:00): after wake → tomorrow's sleep.
  */
 export function resolveScheduledSleepAt(
   now: Date,
   scheduledSleepHHMM: string,
-  homeArrivalTime: Date | null
+  _homeArrivalTime?: Date | null,
+  wakeTimeHHMM?: string
 ): Date {
-  const anchor = homeArrivalTime ?? now
-  return atTimeOnDay(anchor, scheduledSleepHHMM)
+  const todaySleep = atTimeOnDay(now, scheduledSleepHHMM)
+  if (!wakeTimeHHMM) {
+    return todaySleep
+  }
+
+  const sleepM = clockToMinutes(scheduledSleepHHMM)
+  const wakeM = clockToMinutes(wakeTimeHHMM)
+  const overnight = sleepM > wakeM
+  const wakeToday = atTimeOnDay(now, wakeTimeHHMM)
+
+  if (overnight) {
+    if (now.getTime() < wakeToday.getTime()) {
+      const yesterday = new Date(now)
+      yesterday.setDate(yesterday.getDate() - 1)
+      return atTimeOnDay(yesterday, scheduledSleepHHMM)
+    }
+    return todaySleep
+  }
+
+  const wakeAfterTodaySleep = resolveWakeAfter(todaySleep, wakeTimeHHMM)
+  if (now.getTime() < todaySleep.getTime()) {
+    return todaySleep
+  }
+  if (now.getTime() < wakeAfterTodaySleep.getTime()) {
+    return todaySleep
+  }
+  const tomorrow = new Date(now)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  return atTimeOnDay(tomorrow, scheduledSleepHHMM)
 }
 
 /** Wake instant after a lock start (same day or next if wake ≤ lock clock). */
@@ -47,57 +83,88 @@ export function resolveWakeAfter(lockAt: Date, wakeTimeHHMM: string): Date {
 }
 
 /**
- * lockTime = max(scheduledSleepTime, homeArrivalTime + gracePeriod).
- * Without homeArrival, lock is deferred (do not lock while still out).
+ * Step 176 core formula (epoch ms):
+ * effectiveLockTime = Math.max(scheduledSleepTime, homeArrivalTime + GRACE_MINUTES)
+ */
+export function effectiveLockTimeMs(
+  scheduledSleepTime: number,
+  homeArrivalTime: number,
+  graceMinutes: number = GRACE_MINUTES
+): number {
+  return Math.max(
+    scheduledSleepTime,
+    homeArrivalTime + graceMinutes * 60 * 1000
+  )
+}
+
+/**
+ * lockTime = max(scheduledSleep, homeArrival + grace).
+ * No arrival yet + already past scheduled sleep → lockAt null (still out).
  */
 export function computeEffectiveLockTime(input: {
   now: Date
   scheduledSleepHHMM: string
-  homeArrivalTime: Date | null
+  homeArrivalTime?: Date | null
   gracePeriodMs?: number
+  wakeTimeHHMM?: string
 }): EffectiveLockResult {
-  const grace = input.gracePeriodMs ?? ARRIVAL_GRACE_PERIOD_MS
+  const graceMs = input.gracePeriodMs ?? ARRIVAL_GRACE_PERIOD_MS
+  const graceMinutes = graceMs / 60_000
   const scheduledSleepAt = resolveScheduledSleepAt(
     input.now,
     input.scheduledSleepHHMM,
-    input.homeArrivalTime
+    input.homeArrivalTime,
+    input.wakeTimeHHMM
   )
 
-  if (!input.homeArrivalTime) {
+  const arrival = input.homeArrivalTime ?? null
+  if (!arrival) {
+    if (input.now.getTime() >= scheduledSleepAt.getTime()) {
+      return {
+        lockAt: null,
+        scheduledSleepAt,
+        arrivalBasedLockAt: null,
+        deferredForLateArrival: true,
+      }
+    }
     return {
-      lockAt: null,
+      lockAt: scheduledSleepAt,
       scheduledSleepAt,
       arrivalBasedLockAt: null,
-      deferredForLateArrival: true,
+      deferredForLateArrival: false,
     }
   }
 
-  const arrivalBasedLockAt = new Date(
-    input.homeArrivalTime.getTime() + grace
-  )
+  const arrivalBasedLockAt = new Date(arrival.getTime() + graceMs)
   const lockAt = new Date(
-    Math.max(scheduledSleepAt.getTime(), arrivalBasedLockAt.getTime())
+    effectiveLockTimeMs(
+      scheduledSleepAt.getTime(),
+      arrival.getTime(),
+      graceMinutes
+    )
   )
+  const deferredForLateArrival =
+    lockAt.getTime() > scheduledSleepAt.getTime()
 
   return {
     lockAt,
     scheduledSleepAt,
     arrivalBasedLockAt,
-    deferredForLateArrival:
-      lockAt.getTime() > scheduledSleepAt.getTime(),
+    deferredForLateArrival,
   }
 }
 
 export function isInEffectiveSleepWindow(
   now: Date,
-  lockAt: Date,
+  lockAt: Date | null,
   wakeTimeHHMM: string
 ): boolean {
+  if (!lockAt) return false
   const wakeAt = resolveWakeAfter(lockAt, wakeTimeHHMM)
   return now.getTime() >= lockAt.getTime() && now.getTime() < wakeAt.getTime()
 }
 
-/** Minutes until effective lock (ceil); null if lock not determined yet. */
+/** Minutes until effective lock (ceil); 0 if already at/past; null if deferred. */
 export function minutesUntilEffectiveLock(
   now: Date,
   lockAt: Date | null

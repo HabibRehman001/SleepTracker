@@ -5,18 +5,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Notifications from 'expo-notifications'
 
 import * as lockService from './lockService'
+import { loadHomeArrivalTime } from './homeArrival'
 import {
   getNotificationPermissionSnapshot,
 } from './notifications'
 import {
+  decidePreLockWarning,
   LOCK_WARNING_MINUTES,
   PRE_LOCK_WARNING_BODY,
   PRE_LOCK_WARNING_TITLE,
   runPreLockWarningOnce as runPreLockWarningOncePure,
   type PreLockWarningRunResult,
 } from './preLockWarningMath'
+import { computeDynamicLockWarningTrigger } from './dynamicLockWarningMath'
 import { loadEnforcedSchedule } from './scheduledLock'
-import { loadHomeArrivalTime } from './homeArrival'
 
 export const PRE_LOCK_WARNED_STORAGE_KEY = '@sleep_lock/pre_lock_warned_id'
 
@@ -45,8 +47,8 @@ async function presentPreLockWarning(body: string): Promise<void> {
 }
 
 /**
- * One background-fetch cycle: if within 30 min of sleepTime and unlocked,
- * fire exactly one notification for this sleep occurrence.
+ * One background-fetch cycle: warn within 30 min of *effective* lockTime
+ * (Step 176 — Math.max(scheduledSleep, geofenceArrival + GRACE_MINUTES)).
  */
 export async function runPreLockWarningOnce(
   now: Date = new Date()
@@ -55,7 +57,11 @@ export async function runPreLockWarningOnce(
     loadSchedule: async () => {
       const s = await loadEnforcedSchedule()
       if (!s) return null
-      return { sleepTime: s.sleepTime, lockedIn: s.lockedIn }
+      return {
+        sleepTime: s.sleepTime,
+        wakeTime: s.wakeTime,
+        lockedIn: s.lockedIn,
+      }
     },
     isLocked: () => lockService.isLocked(),
     loadHomeArrival: () => loadHomeArrivalTime(),
@@ -64,3 +70,27 @@ export async function runPreLockWarningOnce(
     presentWarning: presentPreLockWarning,
   })
 }
+
+/**
+ * Step 176 — compute warning trigger from geofence-persisted arrival.
+ * Same formula as lock; used for diagnostics / UI.
+ */
+export async function getDynamicLockWarningTrigger(now: Date = new Date()) {
+  const schedule = await loadEnforcedSchedule()
+  if (!schedule?.lockedIn) return null
+  const homeArrivalTime = await loadHomeArrivalTime()
+  const currentlyLocked = await lockService.isLocked()
+  const lastWarnedOccurrenceId = await loadLastWarnedId()
+  return computeDynamicLockWarningTrigger({
+    now,
+    scheduledSleepHHMM: schedule.sleepTime,
+    wakeTimeHHMM: schedule.wakeTime,
+    homeArrivalTime,
+    currentlyLocked,
+    scheduleLockedIn: true,
+    lastWarnedOccurrenceId,
+  })
+}
+
+// Keep decidePreLockWarning available for tests that import via this module.
+export { decidePreLockWarning }

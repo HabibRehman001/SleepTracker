@@ -21,6 +21,7 @@ import { useScheduleStore } from '../store/scheduleStore'
 export default function LockCountdownScreen() {
   const insets = useSafeAreaInsets()
   const bedtime = useScheduleStore((s) => s.bedtime)
+  const waketime = useScheduleStore((s) => s.waketime)
   const lockedIn = useScheduleStore((s) => s.lockedIn)
   const setLocked = useLockStateStore((s) => s.setLocked)
 
@@ -32,11 +33,12 @@ export default function LockCountdownScreen() {
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const arrival = await loadHomeArrivalTime()
       const now = new Date()
+      const arrival = await loadHomeArrivalTime()
       const gate = shouldShowLockCountdown({
         now,
         scheduledSleepHHMM: bedtime ?? '04:00',
+        wakeTimeHHMM: waketime ?? undefined,
         homeArrivalTime: arrival,
         scheduleLockedIn: lockedIn,
         currentlyLocked: false,
@@ -53,7 +55,7 @@ export default function LockCountdownScreen() {
     return () => {
       cancelled = true
     }
-  }, [bedtime, lockedIn])
+  }, [bedtime, waketime, lockedIn])
 
   useEffect(() => {
     if (!lockAt || !ready) return

@@ -47,6 +47,7 @@ export default function SetHomeScreen() {
             accuracy: Location.Accuracy.Balanced,
           })
           if (!cancelled) {
+            setCoords(pos.coords.latitude, pos.coords.longitude)
             setInitialRegion({
               latitude: pos.coords.latitude,
               longitude: pos.coords.longitude,
@@ -63,12 +64,18 @@ export default function SetHomeScreen() {
     return () => {
       cancelled = true
     }
-  }, [hydrateFromBackend])
+  }, [hydrateFromBackend, setCoords])
 
   const save = useCallback(async () => {
     try {
-      await persistToBackend()
+      const home = await persistToBackend()
       setHomeSetupDone(true)
+      const { startHomeGeofencing } = await import('../services/homeGeofence')
+      await startHomeGeofencing(home.latitude, home.longitude).catch(
+        (err: unknown) => {
+          console.warn('[HOME_GEOFENCE] start after save failed', err)
+        }
+      )
       // Soft-lock path: home next. Device Owner is optional from home.
       router.replace('/' as Href)
     } catch {
@@ -95,8 +102,8 @@ export default function SetHomeScreen() {
           Set home location
         </Text>
         <Text className="text-muted-foreground text-[15px] leading-6">
-          Tap the map to drop your home pin. Saved to your LAN server so a
-          reinstall won’t lose it.
+          Find your home on the map (search or use your current location), then
+          save. Stored on your server so a reinstall won’t lose it.
         </Text>
       </View>
 
@@ -124,7 +131,7 @@ export default function SetHomeScreen() {
           </Text>
         ) : (
           <Text className="text-muted-foreground text-center text-sm mb-3">
-            Tap the map to choose a spot
+            Search or use your location to place a pin
           </Text>
         )}
         {lastError ? (

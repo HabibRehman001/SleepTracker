@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-22 (after Step 165 — lock crash/recovery watchdog)
+Last updated: 2026-07-22 (Step 179 current location map)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -830,9 +830,10 @@ expo-notifications requestPermissionsAsync for “phone will lock in 30 minutes�
 scheduleLockWarningNotification helper ready for lock windows.
 
 ----- 6.97 Set home location (Step 137) -----
-/set-home map picker (react-native-maps; web tap fallback).
-PUT/GET /home-location on mobile-server — lat/lng in Mongo so reinstall
-keeps the pin. App hydrates from backend on launch.
+/set-home map picker (react-native-maps native; Google Maps iframe + address
+search on web). PUT/GET /home-location — lat/lng in Mongo so reinstall keeps
+the pin. GET always 200 { home: dto | null } (no 404 when unset). App hydrates
+from backend on launch.
 
 ----- 6.98 Android Device Owner setup (Step 138) -----
 One-time ADB (cannot automate in-app). /device-owner-setup with copyable:
@@ -925,9 +926,13 @@ inside night window 22:00→20:00 next day (shift-worker friendly). Returns
 
 ----- 6.104 Static window ∩ home geofence (Step 144) -----
 findLongestSleepWindow / requireAtHome: whole static window must have
-insideHomeGeofence === true. HOME_GEOFENCE_RADIUS_METERS (100m) + haversine;
-last-known geofence state stamped on MOTION_SAMPLE (Step 174 will drive enter/exit).
-Friend’s-house stillness excluded from baseline sleep.
+insideHomeGeofence === true (or null → treated as home). Haversine helpers remain
+for baseline filtering. Live enter/exit via Step 174 HOME_GEOFENCE updates the flag.
+
+----- 6.114 Late arrival lock shift (Step 155) -----
+lockTime = max(scheduledSleepTime, homeArrivalTime + 30m grace).
+Still out (no arrival) → do not lock at scheduled sleep alone.
+4:30 arrival → warn 4:30 / lock 5:00. Fed by Step 175 homeArrivalTime.
 
 ----- 6.105 Two-night baseline average (Step 145) -----
 Persist detected windows in baselineStore; after 2 nights average bed/wake.
@@ -974,12 +979,50 @@ Same SCHEDULED_LOCK task: past wakeTime (outside sleep window) while locked
 ----- 6.113 Pre-lock warning notification (Step 154) -----
 Within 30 minutes of sleepTime and not yet locked → local notification
 “Phone locks in 30 minutes”. Deduped per sleep occurrence (AsyncStorage) so
-background-fetch does not spam. Scenario: arrive home 4:30, sleep 5:00 → one alert.
+background-fetch does not spam. Fires vs scheduled sleep only (not arrival).
 
------ 6.114 Late arrival lock shift (Step 155) -----
-lockTime = max(scheduledSleepTime, homeArrivalTime + 30m grace).
-Geofence “arrived home” (recordHomeArrival / Step 175) feeds homeArrivalTime.
-Still commuting at scheduled sleep → no lock. 4:30 arrival → warn 4:30 / lock 5:00.
+----- 6.114 Late arrival lock shift (Step 155) — see above -----
+lockTime = max(scheduledSleep, homeArrival + 30m). Arrival from Step 175.
+
+----- 6.124 Home geofence live region (Step 174) -----
+Location.startGeofencingAsync('HOME_GEOFENCE', [
+  { identifier: 'home', latitude, longitude, radius: 150,
+    notifyOnEnter: true, notifyOnExit: true },
+]);
+TaskManager.defineTask('HOME_GEOFENCE', …) → Enter: recordHomeArrival(now).
+Started after set-home save and on home hydrate. Radius = 150m.
+MANUAL TEST: cross 150m (device or emulator mock) → task within ~30s.
+
+----- 6.125 Record homeArrivalTime (Step 175) -----
+PUT /sessions/home-arrival { homeArrivalTime } upserts ActivitySession for the
+current sleep day (Step 127 model). Geofence Enter → local + backend persist.
+4:30 AM arrival → homeArrivalTime HH:MM "04:30" for that night's session.
+Feeds Step 155 late-arrival lock timing.
+
+----- 6.126 Dynamic lock-warning trigger (Step 176) -----
+effectiveLockTime = Math.max(scheduledSleepTime, homeArrivalTime + GRACE_MINUTES)
+GRACE_MINUTES = 30. homeArrivalTime from real HOME_GEOFENCE Enter (not a mock).
+Warning window = 30 min before effectiveLockTime (4:30 arrival → warn 4:30 / lock 5:00).
+Wired into pre-lock warning + scheduled lock + countdown via loadHomeArrivalTime().
+
+----- 6.127 Never arrived home (Step 177) -----
+POLICY: skip-lock — if HOME_GEOFENCE never fires overnight, do not lock.
+Phone stays unlocked while away; lock only after home arrival.
+Documented in Settings (“Away from home”) + home hint.
+Away all night (no arrival through wake) → status skipped-away-all-night.
+
+----- 6.128 Geofence battery (Step 178) -----
+HOME_GEOFENCE uses Location.startGeofencingAsync only (OS region monitoring).
+Forbidden: watchPositionAsync / startLocationUpdatesAsync / getCurrentPosition
+polling loops (those can drain 20%+ overnight).
+Expected overnight drain with fence active: ≤ ~5% (normal standby), not 20%+.
+Documented in Settings → Battery. Contract: npm run test:geofence-battery.
+MANUAL: leave geofencing on overnight; compare drain to a night without the app.
+
+----- 6.129 Current location screen (Step 179) -----
+/current-location — map with you + home marker + distance from home.
+One-shot getCurrentPositionAsync (not continuous GPS). Geofence circle 150m.
+Linked from Settings + home. Web: coordinate fallback (no react-native-maps).
 
 ----- 6.115 Pre-lock countdown screen (Step 156) -----
 /lock-countdown — full-screen timer when the app opens inside the 30-min warning
@@ -1006,7 +1049,7 @@ GET  /stats/monthly?limit=12   monthly agg: duration, bed/wake, consistency
 GET  /stats/comparison         this vs last month + improved + deltas
      (also /api/stats/*)
 PUT  /home-location            upsert home lat/lng (geofence pin)
-GET  /home-location            persisted home (404 if unset)
+GET  /home-location            { home: dto | null } always 200 (no 404)
      (also /api/home-location)
 
 Phase 1 Backend (:4000):
@@ -1091,6 +1134,47 @@ Tests (Backend):
 11. CHANGE LOG
 ================================================================================
 
+[2026-07-22] Step 179 — Current location screen
+- /current-location: map (you + home + 150m circle) + distance label.
+- One-shot GPS refresh; Settings + home links.
+- TESTED: npm run test:current-location; test:set-home; tsc --noEmit.
+
+[2026-07-22] Step 178 — Geofence battery (region monitoring)
+- Verified HOME_GEOFENCE = startGeofencingAsync only; no GPS polling loops.
+- Overnight budget ≤5% (not 20%+); Settings Battery copy + contract test.
+- TESTED: npm run test:geofence-battery; test:home-geofence; tsc --noEmit.
+  MANUAL: overnight drain with fence on ≈ normal standby.
+
+[2026-07-22] Step 177 — Never arrived home (skip-lock)
+- Explicit policy: skip locking that night if geofence never fires.
+- Documented in Settings + home hint; away-all-night never enableLock().
+- TESTED: npm run test:never-arrived; test:scheduled-lock; test:late-arrival;
+  tsc --noEmit.
+
+[2026-07-22] Step 176 — Dynamic lock-warning trigger (real geofence)
+- effectiveLockTime = Math.max(scheduledSleep, homeArrival + GRACE_MINUTES).
+- GRACE_MINUTES=30; arrival from loadHomeArrivalTime (HOME_GEOFENCE), not mock.
+- computeDynamicLockWarningTrigger + resolveDynamicLockWarningTrigger.
+- TESTED: npm run test:dynamic-lock-warning; test:late-arrival; test:pre-lock-warning;
+  tsc --noEmit.
+
+[2026-07-22] Step 175 — Persist homeArrivalTime for sleep day
+- PUT /sessions/home-arrival upserts ActivitySession.homeArrivalTime.
+- Geofence Enter → local AsyncStorage + backend; HH:MM "04:30" for 4:30 AM.
+- Restored Step 155 lockTime = max(scheduledSleep, arrival + 30m).
+- TESTED: npm run test:home-arrival; test:late-arrival; test:sessions (mobile-server);
+  test:scheduled-lock; test:pre-lock-warning; tsc --noEmit.
+
+[2026-07-22] Step 174 — Home geofence (150m)
+- Location.startGeofencingAsync('HOME_GEOFENCE', [{ identifier: 'home', … radius: 150 }]).
+- TaskManager Enter → recordHomeArrival + persist; Exit → outside flag.
+- Wired after set-home save + home screen sync.
+- TESTED: npm run test:home-geofence; test:home-geofence-sleep; tsc --noEmit.
+  MANUAL: cross 150m (emulator mock) fires within ~30s.
+
+[2026-07-22] Steps 174–179 complete (geofence path)
+- Geofence → arrival → dynamic warning → never-arrived skip → battery → map.
+
 [2026-07-22] Step 165 — App crash/recovery while locked
 - SleepLockWatchdogService START_STICKY FGS; relaunch + re-enter Lock Task.
 - TESTED: npm run test:lock-crash-recovery.
@@ -1142,8 +1226,7 @@ Tests (Backend):
 
 [2026-07-22] Step 155 — Late arrival lock shift
 - lockTime = max(scheduledSleep, homeArrival + 30m); no lock while still out.
-- 4:30 arrival → warn at 4:30, lock at 5:00 (not original 4:00).
-- recordHomeArrival stub for Step 175 geofence enter.
+- 4:30 arrival → warn at 4:30, lock at 5:00 (fed by Step 175 homeArrivalTime).
 - TESTED: npm run test:late-arrival; test:pre-lock-warning; test:scheduled-lock; tsc.
 
 [2026-07-22] Step 154 — Pre-lock warning notification
@@ -1193,7 +1276,7 @@ Tests (Backend):
 
 [2026-07-21] Step 144 — Cross-ref static window with home geofence
 - findLongestSleepWindow requires insideHomeGeofence for whole window.
-- geofence.ts: haversine + last-known state (Step 174 will update enter/exit).
+- geofence.ts: haversine + last-known state (live enter/exit = Step 174 HOME_GEOFENCE).
 - TESTED: npm run test:home-geofence-sleep; test:static-window; tsc --noEmit.
 
 [2026-07-21] Step 143 — Longest static window per night

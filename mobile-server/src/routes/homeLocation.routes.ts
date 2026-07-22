@@ -1,8 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import {
-  getHomeLocation,
+  getHomeLocationOrNull,
   upsertHomeLocation,
-  HomeLocationNotFoundError,
 } from '../services/homeLocation.service'
 
 const router = Router()
@@ -16,22 +15,14 @@ function asyncHandler(
 }
 
 /**
- * GET /home-location — persisted home pin (404 if unset).
+ * GET /home-location — { home: dto | null } always 200 (no 404 when unset).
  * PUT /home-location — upsert { latitude, longitude } (Step 137).
  */
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
-    try {
-      const home = await getHomeLocation()
-      res.status(200).json(home)
-    } catch (err) {
-      if (err instanceof HomeLocationNotFoundError) {
-        res.status(404).json({ message: err.message })
-        return
-      }
-      throw err
-    }
+    const home = await getHomeLocationOrNull()
+    res.status(200).json({ home })
   })
 )
 

@@ -40,6 +40,13 @@ export async function getHomeLocation(): Promise<HomeLocationDTO> {
   return toDTO(doc)
 }
 
+/** Prefer this for HTTP GET — never throws; null when unset (avoids noisy 404s). */
+export async function getHomeLocationOrNull(): Promise<HomeLocationDTO | null> {
+  const doc = await HomeLocation.findOne().sort({ updatedAt: -1 }).lean()
+  if (!doc) return null
+  return toDTO(doc)
+}
+
 export async function upsertHomeLocation(input: {
   latitude: number
   longitude: number

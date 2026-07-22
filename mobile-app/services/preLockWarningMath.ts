@@ -1,5 +1,6 @@
 /**
- * Step 154–155 — pre-lock warning against effective lockTime (late arrival aware).
+ * Step 154 / 155 — pre-lock warning against effective lockTime
+ * (max(scheduledSleep, homeArrival + grace)).
  */
 
 import {
@@ -17,7 +18,6 @@ export const PRE_LOCK_WARNING_BODY = 'Phone locks in 30 minutes'
 
 /**
  * Minutes until the next occurrence of sleepTime (0–1439).
- * @deprecated Prefer minutesUntilEffectiveLock for late-arrival.
  */
 export function minutesUntilSleep(now: Date, sleepTimeHHMM: string): number {
   const nowM = now.getHours() * 60 + now.getMinutes()
@@ -28,18 +28,20 @@ export function minutesUntilSleep(now: Date, sleepTimeHHMM: string): number {
   return delta
 }
 
-/** @deprecated Prefer effectiveLockOccurrenceId(lockAt). */
 export function nextSleepOccurrenceId(
   now: Date,
-  sleepTimeHHMM: string
+  sleepTimeHHMM: string,
+  wakeTimeHHMM?: string,
+  homeArrivalTime?: Date | null
 ): string {
   const effective = computeEffectiveLockTime({
     now,
     scheduledSleepHHMM: sleepTimeHHMM,
-    homeArrivalTime: null,
+    wakeTimeHHMM,
+    homeArrivalTime,
   })
-  // Without arrival there is no lock yet — id from scheduled sleep for tests.
-  return effectiveLockOccurrenceId(effective.scheduledSleepAt)
+  const lockAt = effective.lockAt ?? effective.scheduledSleepAt
+  return effectiveLockOccurrenceId(lockAt)
 }
 
 export type PreLockWarningDecision = {
@@ -51,15 +53,16 @@ export type PreLockWarningDecision = {
 }
 
 /**
- * Within LOCK_WARNING_MINUTES of effective lockTime (not fixed schedule alone).
- * Late arrival 4:30 → lock 5:00 → warning fires at 4:30.
+ * Within LOCK_WARNING_MINUTES of effective lockTime.
+ * Late arrival 4:30 → warn at 4:30 (lock 5:00), not at original 3:30.
  */
 export function decidePreLockWarning(input: {
   now: Date
   sleepTime: string
+  wakeTime?: string
   currentlyLocked: boolean
   scheduleLockedIn: boolean
-  homeArrivalTime: Date | null
+  homeArrivalTime?: Date | null
   lastWarnedOccurrenceId: string | null
 }): PreLockWarningDecision {
   if (!input.scheduleLockedIn) {
@@ -75,6 +78,7 @@ export function decidePreLockWarning(input: {
   const effective = computeEffectiveLockTime({
     now: input.now,
     scheduledSleepHHMM: input.sleepTime,
+    wakeTimeHHMM: input.wakeTime,
     homeArrivalTime: input.homeArrivalTime,
   })
 
@@ -84,7 +88,7 @@ export function decidePreLockWarning(input: {
       minutesUntil: null,
       occurrenceId: null,
       effectiveLockAt: null,
-      reason: 'awaiting-home-arrival',
+      reason: 'deferred-late-arrival',
     }
   }
 
@@ -144,10 +148,11 @@ export async function runPreLockWarningOnce(
   deps: {
     loadSchedule: () => Promise<{
       sleepTime: string
+      wakeTime?: string
       lockedIn: boolean
     } | null>
     isLocked: () => Promise<boolean>
-    loadHomeArrival: () => Promise<Date | null>
+    loadHomeArrival?: () => Promise<Date | null>
     loadLastWarnedId: () => Promise<string | null>
     saveLastWarnedId: (id: string) => Promise<void>
     presentWarning: (body: string) => Promise<void>
@@ -158,11 +163,14 @@ export async function runPreLockWarningOnce(
     return { fired: false, occurrenceId: null, reason: 'no-locked-schedule' }
   }
   const currentlyLocked = await deps.isLocked()
-  const homeArrivalTime = await deps.loadHomeArrival()
+  const homeArrivalTime = deps.loadHomeArrival
+    ? await deps.loadHomeArrival()
+    : null
   const lastWarnedOccurrenceId = await deps.loadLastWarnedId()
   const decision = decidePreLockWarning({
     now,
     sleepTime: schedule.sleepTime,
+    wakeTime: schedule.wakeTime,
     currentlyLocked,
     scheduleLockedIn: true,
     homeArrivalTime,

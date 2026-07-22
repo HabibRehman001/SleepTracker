@@ -1,7 +1,9 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import {
   createActivitySession,
+  formatHomeArrivalHHMM,
   listActivitySessions,
+  upsertHomeArrivalForSleepDay,
 } from '../services/session.service'
 
 const router = Router()
@@ -16,8 +18,48 @@ function asyncHandler(
 
 /**
  * POST /sessions — RN pushes each night's detected/enforced session.
+ * PUT /sessions/home-arrival — Step 175 persist homeArrivalTime for sleep day.
  * GET /sessions?range=30d — list sessions in range (default 30d).
  */
+router.put(
+  '/home-arrival',
+  asyncHandler(async (req, res) => {
+    const body = req.body as Record<string, unknown>
+    if (body?.homeArrivalTime == null || body.homeArrivalTime === '') {
+      res.status(400).json({ message: 'homeArrivalTime is required' })
+      return
+    }
+    try {
+      const session = await upsertHomeArrivalForSleepDay({
+        homeArrivalTime: body.homeArrivalTime as string,
+        bedTime:
+          typeof body.bedTime === 'string' ? body.bedTime : undefined,
+        wakeTime:
+          typeof body.wakeTime === 'string' ? body.wakeTime : undefined,
+        source:
+          body.source === 'baseline-auto' || body.source === 'locked-schedule'
+            ? body.source
+            : undefined,
+      })
+      const arrival =
+        session.homeArrivalTime instanceof Date
+          ? session.homeArrivalTime
+          : session.homeArrivalTime
+            ? new Date(session.homeArrivalTime as string)
+            : null
+      res.status(200).json({
+        session,
+        homeArrivalTime: arrival?.toISOString() ?? null,
+        homeArrivalHHMM: arrival ? formatHomeArrivalHHMM(arrival) : null,
+      })
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Invalid home arrival'
+      res.status(400).json({ message })
+    }
+  })
+)
+
 router.post(
   '/',
   asyncHandler(async (req, res) => {

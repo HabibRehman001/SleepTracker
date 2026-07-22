@@ -80,11 +80,32 @@ export {
 } from './preLockWarning'
 export {
   ARRIVAL_GRACE_PERIOD_MS,
+  GRACE_MINUTES,
   computeEffectiveLockTime,
+  effectiveLockTimeMs,
   isInEffectiveSleepWindow,
   resolveWakeAfter,
   effectiveLockOccurrenceId,
 } from './lateArrivalMath'
+export {
+  computeDynamicLockWarningTrigger,
+  type DynamicLockWarningTrigger,
+} from './dynamicLockWarningMath'
+export { resolveDynamicLockWarningTrigger } from './dynamicLockWarning'
+export {
+  NEVER_ARRIVED_HOME_POLICY,
+  NEVER_ARRIVED_POLICY_TITLE,
+  NEVER_ARRIVED_POLICY_BODY,
+  NEVER_ARRIVED_POLICY_SHORT,
+  evaluateNeverArrivedNight,
+  shouldSkipLockForNeverArrived,
+} from './neverArrivedPolicyMath'
+export {
+  formatDistanceFromHome,
+  summarizeCurrentVsHome,
+  regionFittingPoints,
+  type CurrentLocationSummary,
+} from './currentLocationMath'
 export {
   formatCountdown,
   shouldShowLockCountdown,
@@ -102,7 +123,13 @@ export {
   persistHomeArrival,
   applyHomeGeofenceTransition,
   syncHomeArrivalFromGeofenceEnter,
+  formatHomeArrivalHHMM,
+  sleepDayDateKey,
 } from './homeArrival'
+export {
+  persistHomeArrivalToBackend,
+  type HomeArrivalUpsertResult,
+} from './sessionApi'
 export {
   fetchHomeLocation,
   saveHomeLocation,
@@ -146,6 +173,15 @@ export {
   HOME_GEOFENCE_RADIUS_METERS,
   type LatLng,
 } from './geofence'
+export {
+  startHomeGeofencing,
+  stopHomeGeofencing,
+  syncHomeGeofencing,
+  hasStartedHomeGeofencing,
+  HOME_GEOFENCE_TASK,
+  buildHomeGeofenceRegion,
+  interpretHomeGeofenceEvent,
+} from './homeGeofence'
 export {
   averageBedWakeFromWindows,
   averageClockTimes,

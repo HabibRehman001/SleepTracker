@@ -1,10 +1,11 @@
 /**
- * Home geofence helpers (Step 144; enter/exit events land in Step 174).
- * Pure distance math — no Expo imports so Node contracts can run.
+ * Home geofence helpers (Step 144 baseline filter + Step 174 live region).
+ * Live enter/exit is driven by services/homeGeofence.ts (HOME_GEOFENCE task).
+ * resolveInsideHomeGeofence treats null last-known as at-home for baseline.
  */
 
-/** Default home geofence radius (meters). */
-export const HOME_GEOFENCE_RADIUS_METERS = 100
+/** Default home geofence radius (meters) — Step 174. */
+export const HOME_GEOFENCE_RADIUS_METERS = 150
 
 export type LatLng = {
   latitude: number
@@ -36,7 +37,7 @@ export function isInsideHomeGeofence(
 
 /**
  * Last known “inside home geofence” flag.
- * Step 174/175 geofence task updates this; enter → recordHomeArrival (Step 155).
+ * Updated by HOME_GEOFENCE enter/exit (Step 174) and optional manual setters.
  */
 let lastInsideHomeGeofence: boolean | null = null
 

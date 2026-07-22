@@ -1,5 +1,5 @@
 /**
- * Step 154 — pre-lock warning (with home arrival for effective lockTime).
+ * Step 154 — pre-lock warning against scheduled sleep (schedule-only).
  */
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -27,6 +27,7 @@ assert.equal(LOCK_WARNING_MINUTES, 30)
 assert.equal(PRE_LOCK_WARNING_BODY, 'Phone locks in 30 minutes')
 assert.match(math, /decidePreLockWarning|already-warned/)
 assert.match(warn, /runPreLockWarningOnce|PRE_LOCK_WARNED/)
+assert.match(warn, /loadHomeArrivalTime/)
 assert.match(bg, /runPreLockWarningOnce/)
 assert.match(notifications, /PRE_LOCK_WARNING_BODY|Phone locks in 30 minutes/)
 
@@ -34,16 +35,14 @@ function at(h, m, day = 22) {
   return new Date(2026, 6, day, h, m, 0, 0)
 }
 
-// On-time: arrive 4:00, sleep 5:00 → lock 5:00, warn at 4:30
 assert.equal(minutesUntilSleep(at(4, 30), '05:00'), 30)
 
-const homeArrival = at(4, 0)
 const base = {
   now: at(4, 30),
   sleepTime: '05:00',
+  wakeTime: '12:00',
   currentlyLocked: false,
   scheduleLockedIn: true,
-  homeArrivalTime: homeArrival,
   lastWarnedOccurrenceId: null,
 }
 
@@ -69,12 +68,11 @@ assert.equal(
 
 let presentCalls = 0
 let savedId = null
-const schedule = { sleepTime: '05:00', lockedIn: true }
+const schedule = { sleepTime: '05:00', wakeTime: '12:00', lockedIn: true }
 
 const first = await runPreLockWarningOnce(at(4, 30), {
   loadSchedule: async () => schedule,
   isLocked: async () => false,
-  loadHomeArrival: async () => homeArrival,
   loadLastWarnedId: async () => savedId,
   saveLastWarnedId: async (id) => {
     savedId = id
@@ -90,7 +88,6 @@ assert.equal(presentCalls, 1)
 const second = await runPreLockWarningOnce(at(4, 40), {
   loadSchedule: async () => schedule,
   isLocked: async () => false,
-  loadHomeArrival: async () => homeArrival,
   loadLastWarnedId: async () => savedId,
   saveLastWarnedId: async (id) => {
     savedId = id
@@ -103,5 +100,5 @@ assert.equal(second.fired, false)
 assert.equal(presentCalls, 1)
 
 console.log(
-  'Pre-lock warning contract OK — arrive T-30 fires exactly one notification'
+  'Pre-lock warning contract OK — T-30 of scheduled sleep fires exactly once'
 )

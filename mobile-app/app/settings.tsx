@@ -1,4 +1,4 @@
-import { Link } from 'expo-router'
+import { Link, type Href } from 'expo-router'
 import { useEffect } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -7,6 +7,18 @@ import {
   formatClock12h,
   formatSuggestedSchedule,
 } from '../services/baselineDetection'
+import {
+  NEVER_ARRIVED_HOME_POLICY,
+  NEVER_ARRIVED_POLICY_BODY,
+  NEVER_ARRIVED_POLICY_SHORT,
+  NEVER_ARRIVED_POLICY_TITLE,
+} from '../services/neverArrivedPolicyMath'
+import {
+  GEOFENCE_BATTERY_BODY,
+  GEOFENCE_BATTERY_SHORT,
+  GEOFENCE_BATTERY_TITLE,
+  GEOFENCE_OVERNIGHT_DRAIN_BUDGET_PERCENT,
+} from '../services/geofenceBattery'
 import {
   SCHEDULE_CHANGE_EFFECT_MESSAGE,
   isPendingChangeActive,
@@ -157,6 +169,69 @@ export default function SettingsScreen() {
           </Pressable>
         </Link>
       ) : null}
+
+      <Text className="text-muted-foreground text-xs font-semibold tracking-[0.14em] uppercase mb-3 mt-4">
+        Away from home
+      </Text>
+      <View
+        className="bg-card border border-border rounded-lg px-4 py-4 mb-4"
+        testID="settings-never-arrived-policy"
+      >
+        <Text
+          className="text-foreground text-[15px] font-semibold mb-2"
+          testID="settings-never-arrived-title"
+        >
+          {NEVER_ARRIVED_POLICY_TITLE}
+        </Text>
+        <Text
+          className="text-muted-foreground text-sm leading-5"
+          testID="settings-never-arrived-body"
+        >
+          {NEVER_ARRIVED_POLICY_BODY}
+        </Text>
+        <Text
+          className="text-muted-foreground text-xs mt-3 leading-5"
+          testID="settings-never-arrived-policy-id"
+        >
+          Policy: {NEVER_ARRIVED_HOME_POLICY} — {NEVER_ARRIVED_POLICY_SHORT}
+        </Text>
+      </View>
+
+      <Text className="text-muted-foreground text-xs font-semibold tracking-[0.14em] uppercase mb-3 mt-2">
+        Battery
+      </Text>
+      <View
+        className="bg-card border border-border rounded-lg px-4 py-4 mb-4"
+        testID="settings-geofence-battery"
+      >
+        <Text
+          className="text-foreground text-[15px] font-semibold mb-2"
+          testID="settings-geofence-battery-title"
+        >
+          {GEOFENCE_BATTERY_TITLE}
+        </Text>
+        <Text
+          className="text-muted-foreground text-sm leading-5"
+          testID="settings-geofence-battery-body"
+        >
+          {GEOFENCE_BATTERY_BODY}
+        </Text>
+        <Text
+          className="text-muted-foreground text-xs mt-3 leading-5"
+          testID="settings-geofence-battery-budget"
+        >
+          {GEOFENCE_BATTERY_SHORT} Target overnight ≤
+          {GEOFENCE_OVERNIGHT_DRAIN_BUDGET_PERCENT}% (not 20%+).
+        </Text>
+      </View>
+
+      <Link href={'/current-location' as Href} asChild>
+        <Pressable className="py-3" testID="settings-open-current-location">
+          <Text className="text-sidebar-primary text-[15px] font-medium">
+            Current location
+          </Text>
+        </Pressable>
+      </Link>
 
       <Link href="/call-allowlist" asChild>
         <Pressable className="py-3" testID="settings-open-call-allowlist">

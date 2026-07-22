@@ -1,11 +1,16 @@
 /**
- * Steps 152–153 / 155 — scheduled lock/unlock with late-arrival shift (pure).
+ * Steps 152–153 / 155 / 177 — scheduled lock with late-arrival + never-arrived skip.
  */
 
 import {
   computeEffectiveLockTime,
   isInEffectiveSleepWindow,
 } from './lateArrivalMath'
+import {
+  evaluateNeverArrivedNight,
+  NEVER_ARRIVED_HOME_POLICY,
+  shouldSkipLockForNeverArrived,
+} from './neverArrivedPolicyMath'
 
 /** Same cadence as MOTION_SAMPLE — ~15 min on iOS BackgroundFetch. */
 export const SCHEDULED_LOCK_INTERVAL_SECONDS = 15 * 60
@@ -15,14 +20,18 @@ export type ScheduledLockDecision = {
   shouldDisable: boolean
   inSleepWindow: boolean
   alreadyLocked: boolean
-  /** Effective lock instant after late-arrival math (null = still out). */
+  /** Effective lock instant after late-arrival math (null = still out / skipped). */
   effectiveLockAt: Date | null
   deferredForLateArrival: boolean
+  /** Step 177 — away overnight classification. */
+  awayStatus?: string
+  skippedReason?: string | null
 }
 
 /**
  * Enable at effective lockTime; disable past wake.
  * Late arrival: will not enable at original scheduledSleep while still commuting.
+ * Never arrived (Step 177): skip-lock — never enable without geofence arrival.
  */
 export function decideScheduledLock(input: {
   now: Date
@@ -30,7 +39,7 @@ export function decideScheduledLock(input: {
   wakeTime: string
   currentlyLocked: boolean
   scheduleLockedIn: boolean
-  homeArrivalTime: Date | null
+  homeArrivalTime?: Date | null
 }): ScheduledLockDecision {
   if (!input.scheduleLockedIn) {
     return {
@@ -43,14 +52,21 @@ export function decideScheduledLock(input: {
     }
   }
 
-  const effective = computeEffectiveLockTime({
+  const homeArrivalTime = input.homeArrivalTime ?? null
+  const away = evaluateNeverArrivedNight({
     now: input.now,
-    scheduledSleepHHMM: input.sleepTime,
-    homeArrivalTime: input.homeArrivalTime,
+    sleepTime: input.sleepTime,
+    wakeTime: input.wakeTime,
+    homeArrivalTime,
   })
 
-  // Still out — never lock at the original scheduled time alone.
-  if (!effective.lockAt) {
+  // Step 177 — explicit skip when geofence never fired.
+  if (
+    NEVER_ARRIVED_HOME_POLICY === 'skip-lock' &&
+    shouldSkipLockForNeverArrived(homeArrivalTime) &&
+    (away.status === 'awaiting-home' ||
+      away.status === 'skipped-away-all-night')
+  ) {
     return {
       shouldEnable: false,
       shouldDisable: input.currentlyLocked,
@@ -58,6 +74,28 @@ export function decideScheduledLock(input: {
       alreadyLocked: input.currentlyLocked,
       effectiveLockAt: null,
       deferredForLateArrival: true,
+      awayStatus: away.status,
+      skippedReason: away.skippedReason,
+    }
+  }
+
+  const effective = computeEffectiveLockTime({
+    now: input.now,
+    scheduledSleepHHMM: input.sleepTime,
+    wakeTimeHHMM: input.wakeTime,
+    homeArrivalTime,
+  })
+
+  if (!effective.lockAt) {
+    return {
+      shouldEnable: false,
+      shouldDisable: input.currentlyLocked,
+      inSleepWindow: false,
+      alreadyLocked: input.currentlyLocked,
+      effectiveLockAt: null,
+      deferredForLateArrival: effective.deferredForLateArrival,
+      awayStatus: away.status,
+      skippedReason: away.skippedReason,
     }
   }
 
@@ -74,37 +112,25 @@ export function decideScheduledLock(input: {
     shouldDisable: !inSleepWindow && input.currentlyLocked,
     effectiveLockAt: effective.lockAt,
     deferredForLateArrival: effective.deferredForLateArrival,
+    awayStatus: away.status,
+    skippedReason: null,
   }
 }
 
-/** @deprecated Prefer isInEffectiveSleepWindow — kept for older contracts. */
+/** Clock-only sleep window (ignores late-arrival; treats as on-time). */
 export function isInSleepWindow(
   now: Date,
   sleepTimeHHMM: string,
   wakeTimeHHMM: string
 ): boolean {
-  // Approximate with effective lock = scheduled (no late arrival).
-  const { lockAt } = computeEffectiveLockTime({
+  const effective = computeEffectiveLockTime({
     now,
     scheduledSleepHHMM: sleepTimeHHMM,
-    homeArrivalTime: now, // treat "now" as arrival so lock = max(scheduled, now+grace) is wrong
+    wakeTimeHHMM,
+    // Early arrival so lockAt === scheduledSleep (no deferral).
+    homeArrivalTime: new Date(now.getTime() - 24 * 60 * 60 * 1000),
   })
-  // Fallback: if we force arrival=scheduled sleep moment, grace pushes lock — bad.
-  // Use a synthetic arrival at scheduled - grace so lock == scheduled.
-  const scheduled = computeEffectiveLockTime({
-    now,
-    scheduledSleepHHMM: sleepTimeHHMM,
-    homeArrivalTime: (() => {
-      const { scheduledSleepAt } = computeEffectiveLockTime({
-        now,
-        scheduledSleepHHMM: sleepTimeHHMM,
-        homeArrivalTime: null,
-      })
-      return new Date(scheduledSleepAt.getTime() - 30 * 60 * 1000)
-    })(),
-  })
-  if (!scheduled.lockAt) return false
-  return isInEffectiveSleepWindow(now, scheduled.lockAt, wakeTimeHHMM)
+  return isInEffectiveSleepWindow(now, effective.lockAt, wakeTimeHHMM)
 }
 
 export type PersistedEnforcedSchedule = {
@@ -118,11 +144,13 @@ export type ScheduledLockRunResult = {
   disabled: boolean
   inSleepWindow: boolean
   deferredForLateArrival?: boolean
+  awayStatus?: string
   skippedReason?: string
 }
 
 /**
- * One fetch-cycle check with injected I/O (tests simulate clock / arrival).
+ * One fetch-cycle check with injected I/O.
+ * loadHomeArrival supplies Step 175 persisted arrival for late-arrival math.
  */
 export async function runScheduledLockOnce(
   now: Date,
@@ -131,7 +159,7 @@ export async function runScheduledLockOnce(
     disableLock: () => Promise<void>
     isLocked: () => Promise<boolean>
     loadSchedule: () => Promise<PersistedEnforcedSchedule | null>
-    loadHomeArrival: () => Promise<Date | null>
+    loadHomeArrival?: () => Promise<Date | null>
   }
 ): Promise<ScheduledLockRunResult> {
   const schedule = await deps.loadSchedule()
@@ -144,8 +172,11 @@ export async function runScheduledLockOnce(
     }
   }
 
+  const homeArrivalTime = deps.loadHomeArrival
+    ? await deps.loadHomeArrival()
+    : null
+
   const currentlyLocked = await deps.isLocked()
-  const homeArrivalTime = await deps.loadHomeArrival()
   const decision = decideScheduledLock({
     now,
     sleepTime: schedule.sleepTime,
@@ -162,6 +193,7 @@ export async function runScheduledLockOnce(
       disabled: false,
       inSleepWindow: true,
       deferredForLateArrival: decision.deferredForLateArrival,
+      awayStatus: decision.awayStatus,
     }
   }
 
@@ -172,6 +204,7 @@ export async function runScheduledLockOnce(
       disabled: true,
       inSleepWindow: false,
       deferredForLateArrival: decision.deferredForLateArrival,
+      awayStatus: decision.awayStatus,
     }
   }
 
@@ -180,12 +213,15 @@ export async function runScheduledLockOnce(
     disabled: false,
     inSleepWindow: decision.inSleepWindow,
     deferredForLateArrival: decision.deferredForLateArrival,
-    skippedReason: decision.deferredForLateArrival
-      ? 'deferred-late-arrival'
-      : decision.alreadyLocked
-        ? decision.inSleepWindow
-          ? 'already-locked'
-          : 'already-unlocked'
-        : 'outside-sleep-window',
+    awayStatus: decision.awayStatus,
+    skippedReason:
+      decision.skippedReason ??
+      (decision.deferredForLateArrival
+        ? 'deferred-late-arrival'
+        : decision.alreadyLocked
+          ? decision.inSleepWindow
+            ? 'already-locked'
+            : 'already-unlocked'
+          : 'outside-sleep-window'),
   }
 }

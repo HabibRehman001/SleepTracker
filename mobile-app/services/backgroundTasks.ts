@@ -15,6 +15,8 @@ import {
   SCHEDULED_LOCK_INTERVAL_SECONDS,
 } from './scheduledLock'
 import { runPreLockWarningOnce } from './preLockWarning'
+// Step 174 — TaskManager.defineTask('HOME_GEOFENCE') in global scope.
+import './homeGeofence'
 
 export const BACKGROUND_TASKS = {
   /** Periodic accel magnitude proxy — “is the phone still?” (Step 141). */
@@ -26,8 +28,8 @@ export const BACKGROUND_TASKS = {
   scheduledLock: 'SCHEDULED_LOCK',
   /** Periodic check while app is backgrounded (legacy alias name). */
   focusFetch: 'SLEEP_LOCK_FOCUS_FETCH',
-  /** Location / geofence updates */
-  geofence: 'SLEEP_LOCK_GEOFENCE',
+  /** Location / geofence updates (Step 174 — HOME_GEOFENCE via expo-location). */
+  geofence: 'HOME_GEOFENCE',
 } as const
 
 export type BackgroundTaskName =

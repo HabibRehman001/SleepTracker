@@ -98,6 +98,10 @@ export default function RootLayout() {
           options={{ title: 'Settings', headerBackTitle: 'Back' }}
         />
         <Stack.Screen
+          name="current-location"
+          options={{ title: 'Current location', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen
           name="call-allowlist"
           options={{ title: 'Call allow-list', headerBackTitle: 'Back' }}
         />

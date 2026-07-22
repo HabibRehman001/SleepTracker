@@ -22,9 +22,10 @@ assert.match(appSrc, /home-location/)
 assert.match(model, /latitude/)
 assert.match(model, /longitude/)
 assert.match(service, /upsertHomeLocation/)
-assert.match(service, /getHomeLocation/)
+assert.match(service, /getHomeLocationOrNull|getHomeLocation/)
 assert.match(routes, /router\.(put|post)/)
 assert.match(routes, /router\.get/)
+assert.match(routes, /home:\s*null|getHomeLocationOrNull/)
 
 const base = process.env.MOBILE_API_BASE ?? 'http://127.0.0.1:4001'
 const lat = 31.52045
@@ -43,8 +44,9 @@ assert.ok(Math.abs(saved.longitude - lng) < 1e-6)
 const getRes = await fetch(`${base}/home-location`)
 assert.equal(getRes.status, 200)
 const loaded = await getRes.json()
-assert.ok(Math.abs(loaded.latitude - lat) < 1e-6)
-assert.ok(Math.abs(loaded.longitude - lng) < 1e-6)
-assert.equal(loaded.id, saved.id)
+const home = loaded.home ?? loaded
+assert.ok(Math.abs(home.latitude - lat) < 1e-6)
+assert.ok(Math.abs(home.longitude - lng) < 1e-6)
+assert.equal(home.id, saved.id)
 
-console.log('Home location API contract OK — PUT persist + GET reload')
+console.log('Home location API contract OK — PUT persist + GET { home }')

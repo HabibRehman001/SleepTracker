@@ -15,8 +15,8 @@ export type MotionSample = {
   /** True when deviationMs2 < STATIC_THRESHOLD. */
   isStatic: boolean
   /**
-   * Step 144 — stamped from last known home geofence state (Step 174 will
-   * keep that state updated via enter/exit events).
+   * Step 144 — optional home stamp for baseline sleep filter.
+   * Live enter/exit from Step 174 HOME_GEOFENCE; null → treated as at-home.
    */
   insideHomeGeofence?: boolean
   x: number

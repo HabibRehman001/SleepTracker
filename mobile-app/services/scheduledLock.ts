@@ -1,8 +1,10 @@
 /**
- * Steps 152–153 — persist schedule; background cycle enableLock / disableLock.
+ * Steps 152–153 / 155 — persist schedule; background cycle enableLock / disableLock.
+ * Loads homeArrivalTime (Step 175) for late-arrival lock shift.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
+import { loadHomeArrivalTime } from './homeArrival'
 import * as lockService from './lockService'
 import {
   runScheduledLockOnce as runScheduledLockOncePure,
@@ -12,7 +14,6 @@ import {
   decideScheduledLock,
   isInSleepWindow,
 } from './scheduledLockMath'
-import { loadHomeArrivalTime } from './homeArrival'
 
 export const ENFORCED_SCHEDULE_STORAGE_KEY = '@sleep_lock/enforced_schedule'
 
@@ -61,7 +62,7 @@ export async function loadEnforcedSchedule(): Promise<PersistedEnforcedSchedule 
 
 /**
  * One background-fetch cycle:
- * - in sleep window → enableLock()
+ * - at effective lockTime → enableLock()
  * - past wakeTime → disableLock() (Step 153, no user action)
  */
 export async function runScheduledLockOnce(
