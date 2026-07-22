@@ -44,7 +44,16 @@ assert.match(home, /open-settings|\/settings/)
 assert.match(store, /lockedAt|applyLockedSchedule/)
 
 // Local immutability after lockIn
-useScheduleStore.getState().clearSchedule()
+useScheduleStore.setState({
+  bedtime: null,
+  waketime: null,
+  lockedIn: false,
+  lockedAt: null,
+  pendingSleepTime: null,
+  pendingWakeTime: null,
+  pendingRequestedAt: null,
+  pendingEffectiveAt: null,
+})
 useScheduleStore.getState().setSchedule('04:00', '12:00')
 useScheduleStore.getState().lockIn()
 assert.equal(useScheduleStore.getState().lockedIn, true)
@@ -52,6 +61,9 @@ assert.ok(useScheduleStore.getState().lockedAt)
 useScheduleStore.getState().setSchedule('05:00', '11:30')
 assert.equal(useScheduleStore.getState().bedtime, '04:00')
 assert.equal(useScheduleStore.getState().waketime, '12:00')
+useScheduleStore.getState().clearSchedule()
+assert.equal(useScheduleStore.getState().lockedIn, true)
+assert.equal(useScheduleStore.getState().bedtime, '04:00')
 
 console.log(
   'Lock schedule UI contract OK — hold-to-confirm + Settings read-only'

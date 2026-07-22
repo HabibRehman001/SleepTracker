@@ -1,4 +1,4 @@
-import { Link, Redirect, type Href } from 'expo-router'
+import { Link, Redirect, router, type Href } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native'
 
@@ -8,6 +8,7 @@ import {
   SOFT_LOCK_ENABLED_LABEL,
   classifyLockCapability,
 } from '../native'
+import { PermissionRevokedBanner } from '../components/permissions/PermissionRevokedBanner'
 import * as lockService from '../services/lockService'
 import { registerMotionSampleTask } from '../services/backgroundTasks'
 import { syncHomeGeofencing } from '../services/homeGeofence'
@@ -15,6 +16,8 @@ import { shouldShowLockCountdown } from '../services/lockCountdownMath'
 import { isLockCountdownDismissedThisSession } from '../services/lockCountdownSession'
 import { loadHomeArrivalTime } from '../services/homeArrival'
 import { NEVER_ARRIVED_POLICY_SHORT } from '../services/neverArrivedPolicyMath'
+import type { PermissionRevokeFinding } from '../services/permissionRevokedMath'
+import { watchPermissionRevokes } from '../services/permissionRevokedWatch'
 import { syncScheduledLockTrigger } from '../services/syncScheduledLock'
 import { useAuthStore } from '../store/authStore'
 import { useAppStore } from '../store/useAppStore'
@@ -31,6 +34,8 @@ export default function HomeScreen() {
   const locationSetupDone = useAppStore((s) => s.locationSetupDone)
   const motionSetupDone = useAppStore((s) => s.motionSetupDone)
   const notificationSetupDone = useAppStore((s) => s.notificationSetupDone)
+  const setLocationSetupDone = useAppStore((s) => s.setLocationSetupDone)
+  const setMotionSetupDone = useAppStore((s) => s.setMotionSetupDone)
   const homeSetupDone = useAppStore((s) => s.homeSetupDone)
   const setHomeSetupDone = useAppStore((s) => s.setHomeSetupDone)
 
@@ -70,6 +75,9 @@ export default function HomeScreen() {
   const [appFlagsHydrated, setAppFlagsHydrated] = useState(() =>
     useAppStore.persist.hasHydrated()
   )
+  /** Step 194 — mid-use revoke while sticky flags still say "done". */
+  const [permissionRevoked, setPermissionRevoked] =
+    useState<PermissionRevokeFinding | null>(null)
 
   useEffect(() => {
     if (appFlagsHydrated) return
@@ -79,6 +87,29 @@ export default function HomeScreen() {
     if (useAppStore.persist.hasHydrated()) setAppFlagsHydrated(true)
     return unsub
   }, [appFlagsHydrated])
+
+  // Step 194 — detect revoke from system Settings when returning to the app.
+  useEffect(() => {
+    if (!appFlagsHydrated || !authToken) return
+    return watchPermissionRevokes(() => ({
+      locationSetupDone: useAppStore.getState().locationSetupDone,
+      motionSetupDone: useAppStore.getState().motionSetupDone,
+      setLocationSetupDone,
+      setMotionSetupDone,
+      onFinding: setPermissionRevoked,
+      onNavigate: (route) => {
+        setPermissionRevoked(null)
+        router.push(route)
+      },
+    }))
+  }, [
+    appFlagsHydrated,
+    authToken,
+    locationSetupDone,
+    motionSetupDone,
+    setLocationSetupDone,
+    setMotionSetupDone,
+  ])
 
   useEffect(() => {
     void hydrateAuth()
@@ -350,6 +381,18 @@ export default function HomeScreen() {
       >
         {NEVER_ARRIVED_POLICY_SHORT} See Settings for details.
       </Text>
+      {permissionRevoked ? (
+        <View className="w-full max-w-sm mb-2">
+          <PermissionRevokedBanner
+            finding={permissionRevoked}
+            onReGrant={() => {
+              const route = permissionRevoked.primaryRoute
+              setPermissionRevoked(null)
+              router.push(route)
+            }}
+          />
+        </View>
+      ) : null}
       {authUser ? (
         <Text
           className="text-muted-foreground text-xs mb-4"

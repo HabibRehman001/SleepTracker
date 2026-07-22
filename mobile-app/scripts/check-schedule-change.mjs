@@ -69,7 +69,16 @@ assert.equal(after.wakeTime, '11:30')
 assert.equal(after.fromPending, true)
 
 // Store: pending does not rewrite bedtime until due
-useScheduleStore.getState().clearSchedule()
+useScheduleStore.setState({
+  bedtime: null,
+  waketime: null,
+  lockedIn: false,
+  lockedAt: null,
+  pendingSleepTime: null,
+  pendingWakeTime: null,
+  pendingRequestedAt: null,
+  pendingEffectiveAt: null,
+})
 useScheduleStore.getState().applyLockedSchedule('04:00', '12:00', requestedAt)
 useScheduleStore
   .getState()

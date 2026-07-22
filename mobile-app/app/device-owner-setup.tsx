@@ -15,12 +15,17 @@ import {
   DEVICE_OWNER_STEPS,
   FULL_LOCK_ENABLED_LABEL,
 } from '../native'
+import {
+  DEVICE_OWNER_DISTRIBUTION_NOTE,
+  DISTRIBUTION_DECISION_SUMMARY,
+  DISTRIBUTION_MODEL,
+} from '../services/distributionPolicyMath'
 import * as lockService from '../services/lockService'
 import { useAppStore } from '../store/useAppStore'
 import { useLockStateStore } from '../store/lockStateStore'
 
 /**
- * Step 138 — one-time Android Device Owner setup (ADB; cannot be in-app).
+ * Step 138 / 195 — one-time Android Device Owner setup (ADB sideload; not Play).
  */
 export default function DeviceOwnerSetupScreen() {
   const insets = useSafeAreaInsets()
@@ -86,11 +91,32 @@ export default function DeviceOwnerSetupScreen() {
         <Text className="text-foreground text-3xl font-semibold leading-tight mb-3">
           Device Owner setup
         </Text>
-        <Text className="text-muted-foreground text-[15px] leading-6 mb-6">
+        <Text className="text-muted-foreground text-[15px] leading-6 mb-4">
           Optional: true full-device lock needs Device Owner. Soft lock already
           works from your sleep stats without this. Full lock cannot be granted
           inside the app — run ADB once on a phone with no Google account.
         </Text>
+
+        <View
+          className="bg-card border border-border rounded-lg px-4 py-4 mb-6"
+          testID="device-owner-distribution-note"
+        >
+          <Text className="text-muted-foreground text-xs font-semibold tracking-[0.14em] uppercase mb-2">
+            Distribution ({DISTRIBUTION_MODEL})
+          </Text>
+          <Text
+            className="text-foreground text-sm leading-5 mb-2"
+            testID="device-owner-distribution-headline"
+          >
+            {DEVICE_OWNER_DISTRIBUTION_NOTE}
+          </Text>
+          <Text
+            className="text-muted-foreground text-xs leading-5"
+            testID="device-owner-distribution-summary"
+          >
+            {DISTRIBUTION_DECISION_SUMMARY}
+          </Text>
+        </View>
 
         {DEVICE_OWNER_STEPS.map((step, i) => (
           <View key={step} className="flex-row mb-3">

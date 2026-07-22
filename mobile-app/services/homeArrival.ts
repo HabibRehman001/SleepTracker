@@ -16,6 +16,7 @@ import {
   sleepDayDateKey,
 } from './homeArrivalMath'
 import { persistHomeArrivalToBackend } from './sessionApi'
+import { appendSoakStageSafe } from './soakReliability'
 
 export const HOME_ARRIVAL_STORAGE_KEY = '@sleep_lock/home_arrival_iso'
 export const HOME_ARRIVAL_SLEEP_DAY_KEY = '@sleep_lock/home_arrival_sleep_day'
@@ -112,6 +113,10 @@ export async function syncHomeArrivalFromGeofenceEnter(
 ): Promise<Date> {
   const recorded = recordHomeArrival(at)
   await persistHomeArrival(recorded)
+  appendSoakStageSafe('arrival', {
+    at: recorded,
+    detail: formatHomeArrivalHHMM(recorded),
+  })
   try {
     const result = await persistHomeArrivalToBackend(recorded)
     console.log(

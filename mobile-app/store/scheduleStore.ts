@@ -57,6 +57,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
   pendingEffectiveAt: null,
 
   setSchedule: (bedtime, waketime) => {
+    // Step 193 — locked schedule is immutable outside the 24h override path.
     if (get().lockedIn) return
     set({ bedtime, waketime })
   },
@@ -72,6 +73,14 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
   },
 
   applyLockedSchedule: (sleepTime, wakeTime, lockedAt) => {
+    const s = get()
+    if (s.lockedIn) {
+      // Idempotent re-hydrate only — never rewrite times via lock/sync UI.
+      if (s.bedtime === sleepTime && s.waketime === wakeTime) {
+        set({ lockedAt: toIso(lockedAt) })
+      }
+      return
+    }
     set({
       bedtime: sleepTime,
       waketime: wakeTime,
@@ -144,7 +153,9 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
     return true
   },
 
-  clearSchedule: () =>
+  clearSchedule: () => {
+    // Step 193 — cannot wipe a locked schedule from any UI path.
+    if (get().lockedIn) return
     set({
       bedtime: null,
       waketime: null,
@@ -154,7 +165,8 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
       pendingWakeTime: null,
       pendingRequestedAt: null,
       pendingEffectiveAt: null,
-    }),
+    })
+  },
 }))
 
 export function selectPendingActive(

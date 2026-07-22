@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { HoldToConfirm } from '../components/HoldToConfirm'
 import { formatSuggestedSchedule } from '../services/baselineDetection'
 import { isValidHHMM } from '../services/nightDetection'
-import { lockSchedule } from '../services/scheduleApi'
+import { fetchSchedule, lockSchedule } from '../services/scheduleApi'
 import { syncScheduledLockTrigger } from '../services/syncScheduledLock'
 import { useBaselineStore } from '../store/baselineStore'
 import { useScheduleStore } from '../store/scheduleStore'
@@ -60,8 +60,19 @@ export default function LockScheduleScreen() {
       const message =
         err instanceof Error ? err.message : 'Could not lock schedule'
       if (/already locked/i.test(message)) {
-        // Treat as success sync if server already has it
-        applyLockedSchedule(sleepTime, wakeTime, new Date().toISOString())
+        // Step 193 — re-hydrate from server; never overwrite with different params.
+        try {
+          const existing = await fetchSchedule()
+          if (existing) {
+            applyLockedSchedule(
+              existing.sleepTime,
+              existing.wakeTime,
+              existing.lockedAt ?? new Date().toISOString()
+            )
+          }
+        } catch {
+          /* keep local state */
+        }
         markBaselineResultsSeen()
         await syncScheduledLockTrigger()
         router.replace('/')

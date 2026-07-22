@@ -21,7 +21,7 @@ export const DEVICE_OWNER_STEPS = [
   'Factory-reset the phone (or use a device with no Google account).',
   'Skip signing into a Google account during setup.',
   'Enable Developer options → USB debugging.',
-  'Install the Sleep Lock build (custom dev client / APK).',
+  'Install the Sleep Lock APK / dev client yourself (sideload — not a Play Store Device Owner listing).',
   'Connect USB and run the ADB command below on your computer.',
   `Verify with: ${DEVICE_OWNER_DUMPSYS_COMMAND} (lists this app as Device Owner).`,
   'Open Sleep Lock and tap “Check Device Owner status”.',

@@ -5,6 +5,7 @@
 import {
   computeEffectiveLockTime,
   isInEffectiveSleepWindow,
+  resolveWakeAfter,
 } from './lateArrivalMath'
 import {
   evaluateNeverArrivedNight,
@@ -146,11 +147,20 @@ export type ScheduledLockRunResult = {
   deferredForLateArrival?: boolean
   awayStatus?: string
   skippedReason?: string
+  /** Set when enable/disable acted; used to finalize the night session. */
+  effectiveLockAt?: Date | null
 }
+
+export type RecordLockedNightSession = (input: {
+  bedTime: Date
+  wakeTime: Date
+  homeArrivalTime: Date
+}) => Promise<void>
 
 /**
  * One fetch-cycle check with injected I/O.
  * loadHomeArrival supplies Step 175 persisted arrival for late-arrival math.
+ * On unlock, optional recordLockedSession writes the night once (Step 191).
  */
 export async function runScheduledLockOnce(
   now: Date,
@@ -160,6 +170,10 @@ export async function runScheduledLockOnce(
     isLocked: () => Promise<boolean>
     loadSchedule: () => Promise<PersistedEnforcedSchedule | null>
     loadHomeArrival?: () => Promise<Date | null>
+    /** Bed time stamped when lock engaged (survives until unlock). */
+    loadLockStartedAt?: () => Promise<Date | null>
+    saveLockStartedAt?: (at: Date | null) => Promise<void>
+    recordLockedSession?: RecordLockedNightSession
   }
 ): Promise<ScheduledLockRunResult> {
   const schedule = await deps.loadSchedule()
@@ -188,23 +202,50 @@ export async function runScheduledLockOnce(
 
   if (decision.shouldEnable) {
     await deps.enableLock()
+    const bed =
+      decision.effectiveLockAt ?? new Date(now.getTime())
+    if (deps.saveLockStartedAt) {
+      await deps.saveLockStartedAt(bed)
+    }
     return {
       enabled: true,
       disabled: false,
       inSleepWindow: true,
       deferredForLateArrival: decision.deferredForLateArrival,
       awayStatus: decision.awayStatus,
+      effectiveLockAt: bed,
     }
   }
 
   if (decision.shouldDisable) {
     await deps.disableLock()
+    const bedFromStore = deps.loadLockStartedAt
+      ? await deps.loadLockStartedAt()
+      : null
+    const bed = bedFromStore ?? decision.effectiveLockAt
+    if (
+      deps.recordLockedSession &&
+      homeArrivalTime &&
+      bed &&
+      bed.getTime() <= now.getTime()
+    ) {
+      const wakeAt = resolveWakeAfter(bed, schedule.wakeTime)
+      await deps.recordLockedSession({
+        bedTime: bed,
+        wakeTime: wakeAt.getTime() <= now.getTime() ? now : wakeAt,
+        homeArrivalTime,
+      })
+    }
+    if (deps.saveLockStartedAt) {
+      await deps.saveLockStartedAt(null)
+    }
     return {
       enabled: false,
       disabled: true,
       inSleepWindow: false,
       deferredForLateArrival: decision.deferredForLateArrival,
       awayStatus: decision.awayStatus,
+      effectiveLockAt: bed,
     }
   }
 
@@ -223,5 +264,6 @@ export async function runScheduledLockOnce(
             ? 'already-locked'
             : 'already-unlocked'
           : 'outside-sleep-window'),
+    effectiveLockAt: decision.effectiveLockAt,
   }
 }

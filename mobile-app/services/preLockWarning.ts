@@ -19,6 +19,7 @@ import {
 } from './preLockWarningMath'
 import { computeDynamicLockWarningTrigger } from './dynamicLockWarningMath'
 import { loadEnforcedSchedule } from './scheduledLock'
+import { appendSoakStageSafe } from './soakReliability'
 
 export const PRE_LOCK_WARNED_STORAGE_KEY = '@sleep_lock/pre_lock_warned_id'
 
@@ -53,7 +54,7 @@ async function presentPreLockWarning(body: string): Promise<void> {
 export async function runPreLockWarningOnce(
   now: Date = new Date()
 ): Promise<PreLockWarningRunResult> {
-  return runPreLockWarningOncePure(now, {
+  const result = await runPreLockWarningOncePure(now, {
     loadSchedule: async () => {
       const s = await loadEnforcedSchedule()
       if (!s) return null
@@ -69,6 +70,13 @@ export async function runPreLockWarningOnce(
     saveLastWarnedId,
     presentWarning: presentPreLockWarning,
   })
+  if (result.fired) {
+    appendSoakStageSafe('warning', {
+      at: now,
+      detail: result.occurrenceId ?? undefined,
+    })
+  }
+  return result
 }
 
 /**

@@ -50,6 +50,7 @@ export default function BaselineResultsScreen() {
   const preview = liveSchedulePreview(bedtime, waketime, seedBed, seedWake)
 
   const goToLockConfirm = () => {
+    if (lockedIn) return
     const bed = bedtime.trim()
     const wake = waketime.trim()
     if (!isValidHHMM(bed) || !isValidHHMM(wake)) {
@@ -63,6 +64,33 @@ export default function BaselineResultsScreen() {
       pathname: '/lock-schedule',
       params: { sleepTime: bed, wakeTime: wake },
     })
+  }
+
+  if (lockedIn) {
+    return (
+      <View
+        className="bg-background flex-1 items-center justify-center px-8"
+        style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+        testID="baseline-results-locked"
+      >
+        <Text className="text-foreground text-xl font-semibold text-center mb-3">
+          Schedule already locked
+        </Text>
+        <Text className="text-muted-foreground text-center text-[15px] leading-6 mb-6">
+          Baseline adjustments cannot change sleep or wake. Use the 24-hour
+          override request in Settings if you need a rare change.
+        </Text>
+        <Pressable
+          className="bg-primary px-5 py-3 rounded-lg"
+          onPress={() => router.replace('/settings')}
+          testID="baseline-results-locked-settings"
+        >
+          <Text className="text-primary-foreground font-semibold">
+            Open Settings
+          </Text>
+        </Pressable>
+      </View>
+    )
   }
 
   if (!baselineReady && !lockedIn) {

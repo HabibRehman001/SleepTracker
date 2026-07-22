@@ -59,7 +59,12 @@
     "test:month-end-summary": "npx tsx scripts/check-month-end-summary.mjs",
     "test:monthly-report": "npx tsx scripts/check-monthly-report.mjs",
     "test:lock-countdown": "npx tsx scripts/check-lock-countdown.mjs",
-    "test:locked-screen": "npx tsx scripts/check-locked-screen.mjs"
+    "test:locked-screen": "npx tsx scripts/check-locked-screen.mjs",
+    "test:nightly-cycle": "npx tsx scripts/check-nightly-cycle.mjs",
+    "test:soak-reliability": "npx tsx scripts/check-soak-reliability.mjs",
+    "test:immutable-schedule": "npx tsx scripts/check-immutable-schedule.mjs",
+    "test:permission-revoked": "npx tsx scripts/check-permission-revoked.mjs",
+    "test:distribution-policy": "npx tsx scripts/check-distribution-policy.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.6",

@@ -1,11 +1,13 @@
 /**
- * Steps 152–153 / 155 — persist schedule; background cycle enableLock / disableLock.
- * Loads homeArrivalTime (Step 175) for late-arrival lock shift.
+ * Steps 152–153 / 155 / 191 — persist schedule; background cycle
+ * enableLock / disableLock; finalize locked night session on unlock.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 import { loadHomeArrivalTime } from './homeArrival'
 import * as lockService from './lockService'
+import { finalizeLockedNightToBackend } from './sessionApi'
+import { appendSoakStageSafe } from './soakReliability'
 import {
   runScheduledLockOnce as runScheduledLockOncePure,
   type PersistedEnforcedSchedule,
@@ -16,6 +18,8 @@ import {
 } from './scheduledLockMath'
 
 export const ENFORCED_SCHEDULE_STORAGE_KEY = '@sleep_lock/enforced_schedule'
+/** Bed instant when soft/device lock engaged — cleared after unlock finalize. */
+export const LOCK_STARTED_AT_STORAGE_KEY = '@sleep_lock/lock_started_at'
 
 export type { PersistedEnforcedSchedule, ScheduledLockRunResult }
 export {
@@ -60,19 +64,58 @@ export async function loadEnforcedSchedule(): Promise<PersistedEnforcedSchedule 
   }
 }
 
+async function loadLockStartedAt(): Promise<Date | null> {
+  const raw = await AsyncStorage.getItem(LOCK_STARTED_AT_STORAGE_KEY)
+  if (!raw) return null
+  const d = new Date(raw)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+async function saveLockStartedAt(at: Date | null): Promise<void> {
+  if (!at) {
+    await AsyncStorage.removeItem(LOCK_STARTED_AT_STORAGE_KEY)
+    return
+  }
+  await AsyncStorage.setItem(LOCK_STARTED_AT_STORAGE_KEY, at.toISOString())
+}
+
 /**
  * One background-fetch cycle:
  * - at effective lockTime → enableLock()
- * - past wakeTime → disableLock() (Step 153, no user action)
+ * - past wakeTime → disableLock() + finalize session (Step 191)
  */
 export async function runScheduledLockOnce(
   now: Date = new Date()
 ): Promise<ScheduledLockRunResult> {
-  return runScheduledLockOncePure(now, {
+  const result = await runScheduledLockOncePure(now, {
     enableLock: () => lockService.enableLock(),
     disableLock: () => lockService.disableLock(),
     isLocked: () => lockService.isLocked(),
     loadSchedule: () => loadEnforcedSchedule(),
     loadHomeArrival: () => loadHomeArrivalTime(),
+    loadLockStartedAt,
+    saveLockStartedAt,
+    recordLockedSession: async ({ bedTime, wakeTime, homeArrivalTime }) => {
+      try {
+        await finalizeLockedNightToBackend({
+          homeArrivalTime,
+          bedTime,
+          wakeTime,
+        })
+        appendSoakStageSafe('session_recorded', {
+          at: now,
+          detail: 'locked-schedule',
+        })
+      } catch (err) {
+        console.warn('[SCHEDULED_LOCK] session finalize failed', err)
+      }
+    },
   })
+  if (result.enabled) {
+    appendSoakStageSafe('lock', { at: now })
+  }
+  if (result.disabled) {
+    appendSoakStageSafe('unlock', { at: now })
+  }
+  return result
 }

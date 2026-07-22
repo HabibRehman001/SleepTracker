@@ -30,6 +30,7 @@ assert.doesNotMatch(index, /open-device-owner-setup|Optional:\s*full lock/)
 assert.match(index, /full-lock-enabled-badge|FULL_LOCK_ENABLED_LABEL|soft-lock-enabled-badge/)
 assert.doesNotMatch(index, /!deviceOwnerSetupDone/)
 assert.match(screen, /soft lock|optional/i)
+assert.match(screen, /device-owner-distribution-note|personal-sideload|DISTRIBUTION_MODEL/)
 assert.match(receiver, /DeviceAdminReceiver/)
 assert.ok(existsSync(join(root, 'plugins/withDeviceAdmin.js')))
 assert.match(

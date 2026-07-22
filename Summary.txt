@@ -1,7 +1,7 @@
 ================================================================================
 SLEEPTRACKER — PROJECT SUMMARY (living document)
 ================================================================================
-Last updated: 2026-07-22 (Step 189 Phase 1 JSON export)
+Last updated: 2026-07-22 (Step 195 distribution policy)
 Rule for agent: After EVERY future prompt, (1) implement, (2) add/update tests
 in Backend/tests/, (3) run tests and only keep code that passes, (4) append an
 entry to the CHANGE LOG section at the bottom of this file.
@@ -1075,6 +1075,41 @@ Step 105 shape { format, exportedAt, entryCount, entries[] }. Optional
 null; provenance in notes. Optional sync later — no forced merge.
 npm run test:phase1-export.
 
+----- 6.138 Full nightly cycle e2e (Step 191) -----
+Sped-up clock sim: arrival → 30-min warning → lock → stay locked → unlock at
+wake → session finalized to backend. Each stage exactly once (no duplicate
+notifications / double-locks). SCHEDULED_LOCK stamps lock-started-at and
+finalizeLockedNightToBackend on unlock. npm run test:nightly-cycle.
+
+----- 6.139 Battery & reliability soak (Step 192) -----
+Real-device overnight soaks (≥3 nights on physical iOS and Android) before
+trusting the build. OS throttles BackgroundFetch/Doze unpredictably — Step 191
+sim is not enough. Stage logs + Settings checklist; drain ≤~5%. Campaign
+trusted only when both platforms have 3 complete nights.
+npm run test:soak-reliability. MANUAL: soak on real phones.
+
+----- 6.140 Immutable-schedule guarantee (Step 193) -----
+Attack every UI/store path that could change sleep/wake without the 24h
+override (Settings TextInputs, baseline adjust, lock-schedule re-entry,
+onboarding seed, clearSchedule, applyLockedSchedule rewrite). None succeed
+while locked; only applyPendingChange → promoteDuePending after 24h rewrites
+core times. npm run test:immutable-schedule.
+
+----- 6.141 Permission-revoked mid-use (Step 194) -----
+If location/motion is revoked in system Settings after setup, AppState resume
+re-checks OS grants, clears sticky setup flags, shows “Permission turned off”
+alert + home banner, and routes to re-grant screens — never silently stops.
+npm run test:permission-revoked. MANUAL: revoke mid-use from Settings.
+
+----- 6.142 Store / distribution policy (Step 195) — LOCKED -----
+DECISION: DISTRIBUTION_MODEL = personal-sideload.
+Full Android lock (Device Owner → Lock Task, call block) is ADB enroll on your
+own phone — not a standard Play consumer listing that says “locks your phone /
+blocks calls.” Soft-lock may be store-eligible later only with soft-lock-honest
+copy (no Device Owner / call-block / kiosk claims).
+Step 196 polish priority: soft-lock UX + accuracy, not Play hard-lock marketing.
+npm run test:distribution-policy.
+
 ----- 6.115 Pre-lock countdown screen (Step 156) -----
 /lock-countdown — full-screen timer when the app opens inside the 30-min warning
 window. Sets expectation before Soft Lock engages; optional “I’ll wind down”
@@ -1988,6 +2023,35 @@ Tests (Backend):
 - Moved verification out of ad-hoc scripts into tests/.
 - TESTED: npm test → ALL TESTS PASSED (5 analytics + 3 repository).
 - TESTED: npm run test:api → API SMOKE PASSED (4 endpoints).
+
+[2026-07-22] Step 195 — Store / distribution policy (LOCKED)
+- Decision: personal-sideload for Device Owner full lock; not Play “locks phone /
+  blocks calls” consumer listing. Soft-lock store path = careful wording only.
+- Device Owner setup shows distribution note; forbidden/allowed claim lists.
+- TESTED: npm run test:distribution-policy.
+
+[2026-07-22] Step 194 — Permission-revoked mid-use
+- detectRevokedPermissions + AppState watch clears sticky location/motion flags.
+- Alert “Permission turned off” + Re-grant banner; no silent feature death.
+- TESTED: npm run test:permission-revoked. MANUAL: revoke in system Settings.
+
+[2026-07-22] Step 193 — Immutable-schedule guarantee
+- Hardened store: setSchedule/clearSchedule/applyLockedSchedule no-op when locked
+  (idempotent same-times sync only); baseline locked gate; lock-schedule fetches
+  server on “already locked” instead of overwriting.
+- Attack-path contract: settings/baseline/onboarding/manual/API PUT — none mutate.
+- TESTED: npm run test:immutable-schedule; test:lock-schedule; test:schedule-change.
+
+[2026-07-22] Step 192 — Battery & reliability soak (real devices)
+- Protocol: ≥3 real overnight nights on iOS + Android before trust.
+- Soak stage logs on arrival/warn/lock/unlock/session; Settings checklist.
+- evaluateSoakCampaign trusted only after both platforms clear 3 nights.
+- TESTED: npm run test:soak-reliability. MANUAL: physical phones overnight.
+
+[2026-07-22] Step 191 — Full nightly cycle e2e (sped-up clock)
+- simulateNightlyCycle: arrival→warn→lock→stay→unlock→session; each ×1.
+- Unlock finalizes locked-schedule session via home-arrival upsert.
+- TESTED: npm run test:nightly-cycle; test:scheduled-lock; test:pre-lock-warning.
 
 [2026-07-22] Step 189 — Phase 1 JSON export bridge
 - GET /export/json maps ActivitySessions → Step 105 { format, entries[] }.

@@ -30,7 +30,16 @@ assert.match(baselineSrc, /avgDailySteps|detectedBedtime/)
 assert.match(lockSrc, /isLocked/)
 
 // Runtime: schedule lock-in
-useScheduleStore.getState().clearSchedule()
+useScheduleStore.setState({
+  bedtime: null,
+  waketime: null,
+  lockedIn: false,
+  lockedAt: null,
+  pendingSleepTime: null,
+  pendingWakeTime: null,
+  pendingRequestedAt: null,
+  pendingEffectiveAt: null,
+})
 useScheduleStore.getState().setSchedule('23:00', '07:00')
 assert.equal(useScheduleStore.getState().bedtime, '23:00')
 assert.equal(useScheduleStore.getState().waketime, '07:00')
@@ -39,6 +48,8 @@ assert.equal(useScheduleStore.getState().lockedIn, true)
 assert.ok(useScheduleStore.getState().lockedAt)
 useScheduleStore.getState().setSchedule('22:00', '06:00')
 assert.equal(useScheduleStore.getState().bedtime, '23:00', 'locked schedule immutable')
+useScheduleStore.getState().clearSchedule()
+assert.equal(useScheduleStore.getState().lockedIn, true, 'clearSchedule blocked when locked')
 
 // Runtime: baseline
 useBaselineStore.getState().resetBaseline()

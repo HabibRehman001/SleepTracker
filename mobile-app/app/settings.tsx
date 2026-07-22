@@ -20,6 +20,14 @@ import {
   GEOFENCE_OVERNIGHT_DRAIN_BUDGET_PERCENT,
 } from '../services/geofenceBattery'
 import {
+  SOAK_MANUAL_CHECKLIST,
+  SOAK_MIN_REAL_NIGHTS,
+  SOAK_OS_THROTTLE_NOTE,
+  SOAK_RELIABILITY_BODY,
+  SOAK_RELIABILITY_SHORT,
+  SOAK_RELIABILITY_TITLE,
+} from '../services/soakReliabilityMath'
+import {
   SCHEDULE_CHANGE_EFFECT_MESSAGE,
   isPendingChangeActive,
 } from '../services/scheduleChange'
@@ -223,6 +231,46 @@ export default function SettingsScreen() {
           {GEOFENCE_BATTERY_SHORT} Target overnight ≤
           {GEOFENCE_OVERNIGHT_DRAIN_BUDGET_PERCENT}% (not 20%+).
         </Text>
+      </View>
+
+      <View
+        className="bg-card border border-border rounded-lg px-4 py-4 mb-4"
+        testID="settings-soak-reliability"
+      >
+        <Text
+          className="text-foreground text-[15px] font-semibold mb-2"
+          testID="settings-soak-reliability-title"
+        >
+          {SOAK_RELIABILITY_TITLE}
+        </Text>
+        <Text
+          className="text-muted-foreground text-sm leading-5"
+          testID="settings-soak-reliability-body"
+        >
+          {SOAK_RELIABILITY_BODY}
+        </Text>
+        <Text
+          className="text-muted-foreground text-xs mt-3 leading-5"
+          testID="settings-soak-reliability-throttle"
+        >
+          {SOAK_OS_THROTTLE_NOTE}
+        </Text>
+        <Text
+          className="text-muted-foreground text-xs mt-3 leading-5"
+          testID="settings-soak-reliability-short"
+        >
+          {SOAK_RELIABILITY_SHORT} Minimum {SOAK_MIN_REAL_NIGHTS} complete
+          nights per platform.
+        </Text>
+        {SOAK_MANUAL_CHECKLIST.map((row, i) => (
+          <Text
+            key={row}
+            className="text-muted-foreground text-xs mt-2 leading-5"
+            testID={`settings-soak-checklist-${i}`}
+          >
+            {i + 1}. {row}
+          </Text>
+        ))}
       </View>
 
       <Link href={'/current-location' as Href} asChild>

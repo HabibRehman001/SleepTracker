@@ -44,3 +44,43 @@ export async function persistHomeArrivalToBackend(
     }),
   })
 }
+
+/**
+ * Step 191 — finalize the locked night on the backend after scheduled unlock.
+ * Reuses the sleep-day upsert so we don't create a duplicate row.
+ */
+export async function finalizeLockedNightToBackend(input: {
+  homeArrivalTime: Date
+  bedTime: Date
+  wakeTime: Date
+}): Promise<HomeArrivalUpsertResult> {
+  return persistHomeArrivalToBackend(input.homeArrivalTime, {
+    bedTime: input.bedTime,
+    wakeTime: input.wakeTime,
+    source: 'locked-schedule',
+  })
+}
+
+/** POST /sessions — create a new ActivitySession (baseline or manual). */
+export async function createActivitySession(payload: {
+  date: Date
+  bedTime: Date
+  wakeTime: Date
+  source: 'baseline-auto' | 'locked-schedule'
+  stepsCount?: number
+  homeArrivalTime?: Date | null
+}): Promise<ActivitySessionPayload> {
+  return mobileFetch<ActivitySessionPayload>('/sessions', {
+    method: 'POST',
+    body: JSON.stringify({
+      date: payload.date.toISOString(),
+      bedTime: payload.bedTime.toISOString(),
+      wakeTime: payload.wakeTime.toISOString(),
+      source: payload.source,
+      ...(payload.stepsCount != null ? { stepsCount: payload.stepsCount } : {}),
+      ...(payload.homeArrivalTime
+        ? { homeArrivalTime: payload.homeArrivalTime.toISOString() }
+        : {}),
+    }),
+  })
+}
